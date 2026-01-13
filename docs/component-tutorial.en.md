@@ -1,5 +1,7 @@
 # Cellium Component Development Tutorial
 
+[中文](component-tutorial.md) | [Back to Main](../README.md) | [中文主文档](../README.md)
+
 > **"In Cellium, writing a feature module is as natural as writing a simple Python function, and the complex communication is handled by the microkernel."**
 
 This tutorial demonstrates how to create a Cellium component from scratch using a complete example. We will build a "Greeter Component" that receives text input from the frontend, appends "Hallo Cellium" suffix, and returns the result for display.

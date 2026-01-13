@@ -1,5 +1,7 @@
 # Cellium 组件开发教程
 
+[English](component-tutorial.en.md) | [返回主文档](../README.md) | [English Main](../README.en.md)
+
 > **"在 Cellium 中，写一个功能模块就像写一个简单的 Python 函数一样自然，而剩下的复杂通信，交给微内核。"**
 
 本教程通过一个完整的示例，演示如何从零开始创建 Cellium 组件。我们将构建一个「问候组件」，它接收前端输入的文字，在后面添加「Hallo Cellium」后缀，然后返回显示。

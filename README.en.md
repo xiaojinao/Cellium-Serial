@@ -1,5 +1,7 @@
 # Cellium
 
+[中文](README.md) | [Tutorial](docs/component-tutorial.md) | [中文教程](docs/component-tutorial.md)
+
 **Python + HTML/JS Desktop Application Framework.**
 
 Based on "Core-Driven, Module Decoupling" philosophy, connecting Python backend with Web frontend through a lightweight micro-kernel.

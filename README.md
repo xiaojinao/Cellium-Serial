@@ -1,5 +1,7 @@
 # Cellium
 
+[English](README.en.md) | [教程](docs/component-tutorial.md) | [English Tutorial](docs/component-tutorial.en.md)
+
 **Python + HTML/JS 的桌面应用框架。**
 
 基于"核心驱动-模块解耦"理念的 Python 桌面应用框架。
