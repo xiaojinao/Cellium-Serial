@@ -1,6 +1,8 @@
 [English](README.en.md) | [教程](docs/component-tutorial.md) | [English Tutorial](docs/component-tutorial.en.md)
 
-![Cellium Logo](logo.png)
+<p align="center">
+  <img src="logo.png" alt="Cellium Logo" width="200">
+</p>
 
 # Cellium
 
