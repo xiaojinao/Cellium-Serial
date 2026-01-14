@@ -2,21 +2,79 @@
 
 [中文](index.md)|[English](index.en.md)
 
-## 教程
+## Tutorials
 
 - [Component Tutorial](component-tutorial.en.md) | [组件开发教程（中文）](component-tutorial.md)
-- [Multiprocessing Tutorial](multiprocessing-tutorial.en.md) | [多进程教程（中文）](multiprocessing.md)
+- [Multiprocessing Tutorial](multiprocessing-tutorial.en.md) | [多进程教程（中文）](multiprocessing-tutorial.md)
+- [Event Mode Tutorial](event-mode-tutorial.en.md) | [事件模式教程（中文）](event-mode-tutorial.md)
+- [Logging Tutorial](logging-tutorial.en.md) | [日志使用（中文）](logging-tutorial.md)
 
 > **"In Cellium, writing a feature module is as natural as writing a simple Python function, and the complex communication is handled by the microkernel."**
 
 This tutorial demonstrates how to create a Cellium component from scratch using a complete example. We will build a "Greeter Component" that receives text input from the frontend, appends "Hallo Cellium" suffix, and returns the result for display.
+
+## Communication Modes
+
+Cellium supports two communication modes, choose based on your scenario:
+
+### 1. Command Mode
+
+Frontend calls backend component methods, suitable for **request-response** scenarios.
+
+```python
+# Backend component
+class Greeter(ICell):
+    def execute(self, command: str, *args, **kwargs):
+        if command == "greet":
+            return f"{args[0]} Hallo Cellium"
+
+# Frontend call
+window.mbQuery(0, 'greeter:greet:Hello', function(){})
+```
+
+**Features**:
+- One-to-one communication, direct component method call
+- Supports return values (synchronous response)
+- Ideal for simple request-response interactions
+
+### 2. Event Mode
+
+Publish-subscribe based event bus, suitable for **decoupled notification** scenarios.
+
+```python
+# Backend component subscribes to events
+from app.core.bus import event
+
+class Logger:
+    @event("user.login")
+    def on_login(self, event_name, **kwargs):
+        print(f"User logged in: {kwargs.get('username')}")
+
+# Frontend publishes event
+window.mbQuery(0, 'bus:publish:user.login:{"username":"Alice"}', function(){})
+```
+
+**Features**:
+- One-to-many communication, multiple components can subscribe to same event
+- No return value (asynchronous notification)
+- Ideal for cross-component decoupled communication
+
+### Mode Comparison
+
+| Feature | Command Mode | Event Mode |
+|---------|-------------|------------|
+| Communication | Frontend → Backend Component | Frontend → EventBus → Multiple Subscribers |
+| Return Value | Yes (sync response) | No (async notification) |
+| Use Case | Request-Response | Decoupled Notification |
+
+> 💡 **This tutorial** focuses on **Command Mode** as it's more intuitive for beginners. For detailed Event Mode usage, see [README.md](file:///c:/Users/Administrator/Desktop/app/python-miniblink/README.md#事件总线-eventbus).
 
 ## 1. Cellium Communication Protocol
 
 Before coding, let's understand Cellium's core communication protocol. All cross-layer communication follows the "Cell Addressing Protocol":
 
 ```
-pycmd('cell:command:args')
+window.mbQuery(0, 'cell:command:args', function(){})
 ```
 
 | Component | Description | Example |
@@ -28,18 +86,111 @@ pycmd('cell:command:args')
 **Protocol Examples:**
 ```
 # Send greet command to greeter component with argument "Hello"
-pycmd('greeter:greet:Hello')
+window.mbQuery(0, 'greeter:greet:Hello', function(){})
 
 # Send calc command to calculator component with expression "1+1"
-pycmd('calculator:calc:1+1')
+window.mbQuery(0, 'calculator:calc:1+1', function(){})
 
 # Pass arguments containing colons (e.g., file paths)
-pycmd('filemanager:read:C:/test.txt')
+window.mbQuery(0, 'filemanager:read:C:/test.txt', function(){})
 ```
 
 > 💡 **Args Note**: The argument portion is passed as a single string. If you need to pass multiple arguments, parse them within the component (e.g., using `args.split(':')`).
 
 This concise protocol design makes frontend-backend communication intuitive and powerful.
+
+## Mixed Mode: Command as String, Data as JSON
+
+Args is a pure string, so you can choose flexible parameter passing methods:
+
+**1. Simple Parameters (Direct String):**
+```javascript
+// Single simple value
+window.mbQuery(0, 'greeter:greet:Hello', callback)
+
+// Multiple simple parameters (parsed by component)
+window.mbQuery(0, 'file:read:C:/test.txt:utf-8', callback)
+```
+
+**2. Complex Data (JSON String):**
+```javascript
+// Complex structures using JSON serialization
+let userData = JSON.stringify({name: "Alice", age: 25, tags: ["admin", "pro"]});
+window.mbQuery(0, `user:update:${userData}`, callback)
+```
+
+**3. Backend Automatic Parsing:**
+
+The core layer automatically identifies JSON parameters, no manual judgment needed:
+
+```python
+# Component receives dict/list directly, no manual json.loads needed
+def _cmd_update(self, data: dict):
+    # data is already a dict type
+    print(f"Received data: {data}")
+    print(f"User name: {data.get('name')}")
+    return f"Hello, {data.get('name')}"
+```
+
+| Scenario | Passing Method | Component Receives |
+|----------|---------------|-------------------|
+| Simple value | Direct string | `str` type |
+| Complex structure | JSON serialization | `dict` or `list` type |
+| Array | JSON serialization | `list` type |
+
+> 💡 **Auto-Parse Rule**: The core layer `MessageHandler` automatically detects if Args starts with `{` or `[`, and if so, attempts to parse as JSON. The component's `execute` method receives the parsed object (dict/list), not the raw string.
+
+### Auto JSON Parse Example
+
+**Frontend passing complex data:**
+```javascript
+// Pass user info object
+let userInfo = JSON.stringify({
+    name: "Alice",
+    age: 25,
+    skills: ["Python", "Qt", "Cellium"]
+});
+window.mbQuery(0, `user:create:${userInfo}`, function(customMsg, response) {
+    console.log("Create result:", response);
+});
+```
+
+**Backend component usage:**
+```python
+class UserCell(ICell):
+    def _cmd_create(self, user_data: dict):
+        # user_data is directly a dict, no json.loads needed
+        name = user_data.get('name')
+        age = user_data.get('age')
+        skills = user_data.get('skills', [])
+        
+        # Processing logic...
+        return f"User {name} created successfully, age {age}"
+```
+
+### Async Execution Support
+
+For time-consuming operations (file I/O, network requests), use async execution to avoid blocking UI:
+
+```python
+class FileCell(ICell):
+    def execute(self, command: str, *args, **kwargs):
+        if command == "read":
+            return self._handle_read(args[0], async_exec=True)
+        return super().execute(command, *args, **kwargs)
+
+    def _handle_read(self, filepath: str, async_exec: bool = False):
+        # Use async_exec=True to enable async execution
+        return self._execute_command("read_large_file", filepath, async_exec=async_exec)
+
+    def _execute_command(self, cmd: str, args, async_exec: bool = False):
+        """Execute command through framework, supports async"""
+        command = f"{self.cell_name}:{cmd}:{args}"
+        # When async_exec=True, command is submitted to thread pool
+        return self._framework_handler._handle_cell_command(command, async_exec=async_exec)
+```
+
+> 💡 **Async Execution Note**: When `async_exec=True` is set, the command is submitted to the thread pool, and the method immediately returns `"Task submitted to thread pool"`. The actual result is returned via event bus or other mechanisms.
 
 ## 2. Create Component File
 
@@ -95,7 +246,7 @@ Each Cellium component must inherit from the `ICell` interface and implement thr
 
 | Method | Description |
 |--------|-------------|
-| `cell_name` | Component identifier (lowercase), used for frontend `pycmd()` calls |
+| `cell_name` | Component identifier (lowercase), used for frontend `window.mbQuery()` calls |
 | `execute(command, *args)` | Execute specific command, `command` is the command name, `*args` are parameters |
 | `get_commands()` | Returns command description dictionary for frontend reference |
 
@@ -103,7 +254,7 @@ Execution Flow:
 
 ```mermaid
 flowchart LR
-    A["Frontend pycmd<br>pycmd('greeter:greet:Hello')"] --> B["MessageHandler<br>Parse Command"]
+    A["Frontend window.mbQuery<br>window.mbQuery(0, 'greeter:greet:Hello', function(){})"] --> B["MessageHandler<br>Parse Command"]
     B --> C["Find greeter Component"]
     C --> D["Call execute<br>execute('greet', 'Hello')"]
     D --> E["Execute _cmd_greet<br>Return Result"]
@@ -208,13 +359,9 @@ Add input fields and buttons in HTML to call the new component:
             }
             
             // Call Greeter component
-            pycmd('greeter:greet:' + text);
-        }
-        
-        // Listen for messages from backend
-        function onpycmdresult(result) {
-            var resultDiv = document.getElementById('result');
-            resultDiv.textContent = result;
+            window.mbQuery(0, 'greeter:greet:' + text, function(customMsg, response) {
+                document.getElementById('result').textContent = response;
+            });
         }
     </script>
 </body>
@@ -232,8 +379,8 @@ sequenceDiagram
     participant C as Greeter Component
 
     F->>F: 1. User enters "Hello"
-    F->>F: 2. Click button to call pycmd
-    F->>M: 3. pycmd('greeter:greet:Hello')
+    F->>F: 2. Click button to call window.mbQuery
+    F->>M: 3. window.mbQuery(0, 'greeter:greet:Hello', function(){})
     
     M->>M: Parse command format
     M->>M: Find greeter component
@@ -242,7 +389,7 @@ sequenceDiagram
     C->>C: 5. Execute _cmd_greet processing logic
     C-->>M: 6. Return "Hello Hallo Cellium"
     
-    M-->>F: 7. onpycmdresult() callback
+    M-->>F: 7. Callback function executes
     F->>F: 8. Update page display with result
 ```
 
@@ -253,7 +400,7 @@ sequenceDiagram
 | 1 | Enter "Hello" | Receive parameters | — |
 | 2 | Click "Send Greeting" | Append suffix | — |
 | 3 | — | Return "Hello Hallo Cellium" | — |
-| 4 | onpycmdresult callback | — | "Hello Hallo Cellium" |
+| 4 | Callback function executes | — | "Hello Hallo Cellium" |
 
 ## 7. Extended Features
 
@@ -292,7 +439,9 @@ Frontend call:
 
 ```javascript
 // Reverse greeting
-pycmd('greeter:reverse:Cellium')
+window.mbQuery(0, 'greeter:reverse:Cellium', function(customMsg, response) {
+    console.log(response);
+})
 // Result: "malloC Hallo Cellium"
 ```
 
@@ -339,7 +488,7 @@ Ensure the command name matches the check in the `execute` method:
 if command == "greet":  # Here is "greet"
 
 # Frontend call
-pycmd('greeter:greet:xxx')  # Must also use "greet"
+window.mbQuery(0, 'greeter:greet:xxx', function(){})  # Must also use "greet"
 ```
 
 **Q: How to pass multiple arguments?**
@@ -356,7 +505,7 @@ def execute(self, command: str, *args, **kwargs):
         prefix = parts[1] if len(parts) > 1 else "Hello"  # "Hello"
 
 # Frontend
-pycmd('greeter:greet:Alice:Hello')
+window.mbQuery(0, 'greeter:greet:Alice:Hello', function(){})
 ```
 
 ## 10. Complete File List

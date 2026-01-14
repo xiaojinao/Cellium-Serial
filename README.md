@@ -3,8 +3,9 @@
 **文档网站：** [https://xiaojinao.github.io/Cellium/](https://xiaojinao.github.io/Cellium/) （推荐 | 更好的阅读体验）
 
 **文档导航：**
-- [多进程教程](docs/multiprocessing-tutorial.md) | [Multiprocessing Tutorial](docs/multiprocessing-tutorial.en.md)
-- [组件开发教程](docs/component-tutorial.md) | [Component Tutorial](docs/component-tutorial.en.md)
+- [Component Tutorial](component-tutorial.en.md) | [组件开发教程（中文）](component-tutorial.md)
+- [Multiprocessing Tutorial](multiprocessing-tutorial.en.md) | [多进程教程（中文）](multiprocessing-tutorial.md)
+- [Event Mode Tutorial](event-mode-tutorial.en.md) | [事件模式教程（中文）](event-mode-tutorial.md)
 
 <p align="center">
   <img src="logo.png" alt="Cellium Logo" width="400">
@@ -44,7 +45,7 @@ class Greeter(ICell):
 
 ```html
 <!-- html/index.html -->
-<button onclick="pycmd('greeter:greet:你好')">问候</button>
+<button onclick="window.mbQuery(0, 'greeter:greet:你好', function(){})">问候</button>
 ```
 
 选择 Cellium：**用你熟悉的 Python 和 Web 技术，快速构建桌面应用。**
@@ -123,7 +124,7 @@ flowchart TB
     subgraph Frontend["前端层 (MiniBlink)"]
         H["HTML/CSS"]
         J["JavaScript"]
-        P["pycmd() 调用"]
+        MB["window.mbQuery() 调用"]
     end
 
     Core["Cellium 微内核 (Core)"]
@@ -134,7 +135,7 @@ flowchart TB
         Custom["自定义组件"]
     end
 
-    Frontend -->|"pycmd('cell:command:args')"| Core
+    Frontend -->|window.mbQuery(0, 'cell:command:args')"| Core
     Core --> Backend
 ```
 
@@ -181,7 +182,7 @@ flowchart TB
 ```mermaid
 flowchart TD
     A["用户操作"] --> B["JavaScript HTML/CSS"]
-    B -->|"pycmd calculator:calc:1+1"| C["MiniBlinkBridge 接收回调"]
+    B -->|window.mbQuery(0, 'calculator:calc:1+1')| C["MiniBlinkBridge 接收回调"]
     C --> D["MessageHandler 命令解析与路由"]
     
     D --> E{处理方式}
@@ -199,13 +200,15 @@ flowchart TD
 ## 目录结构
 
 ```
-cellium/
+python-miniblink/
 ├── app/
 │   ├── core/                    # 微内核模块
 │   │   ├── __init__.py          # 模块导出
 │   │   ├── bus/                 # 事件总线
 │   │   │   ├── __init__.py
-│   │   │   └── event_bus.py     # 事件总线实现
+│   │   │   ├── event_bus.py     # 事件总线实现
+│   │   │   ├── events.py        # 事件类型定义
+│   │   │   └── event_models.py  # 事件模型定义
 │   │   ├── window/              # 窗口管理
 │   │   │   ├── __init__.py
 │   │   │   └── main_window.py   # 主窗口
@@ -214,7 +217,8 @@ cellium/
 │   │   │   └── miniblink_bridge.py  # MiniBlink 通信桥接
 │   │   ├── handler/             # 消息处理
 │   │   │   ├── __init__.py
-│   │   │   └── message_handler.py   # 消息处理器（命令路由）
+│   │   │   ├── message_handler.py   # 消息处理器（命令路由）
+│   │   │   └── title_bar_handler.py # 标题栏处理器
 │   │   ├── util/                # 工具模块
 │   │   │   ├── __init__.py
 │   │   │   ├── logger.py        # 日志管理
@@ -226,18 +230,26 @@ cellium/
 │   │   ├── interface/           # 接口定义
 │   │   │   ├── __init__.py
 │   │   │   └── icell.py         # ICell 组件接口
-│   │   ├── events.py            # 事件类型定义
-│   │   └── event_models.py      # 事件模型定义
-│   ├── components/                   # 组件单元
+│   │   └── __init__.py          # 模块导出
+│   ├── components/              # 组件单元
 │   │   ├── __init__.py
-│   │   └── calculator.py        # 计算器组件
-│   └── __init__.py              # 应用入口
+│   │   ├── calculator.py        # 计算器组件
+│   │   └── greeter.py           # 问候组件
+│   └── __init__.py              # 模块导出
+├── docs/                        # 文档教程
+│   ├── index.md                 # 文档首页
+│   ├── index.en.md              # 文档首页（英文）
+│   ├── component-tutorial.md    # 组件开发教程
+│   ├── component-tutorial.en.md # 组件开发教程（英文）
+│   ├── event-mode-tutorial.md   # 事件模式教程
+│   ├── event-mode-tutorial.en.md # 事件模式教程（英文）
+│   ├── multiprocessing-tutorial.md   # 多进程教程
+│   └── multiprocessing-tutorial.en.md # 多进程教程（英文）
 ├── html/                        # HTML 资源
 │   └── index.html               # 主页面
 ├── font/                        # 字体文件
 ├── dll/                         # DLL 文件
 │   └── mb132_x64.dll            # MiniBlink 引擎
-├── app_icon.ico                 # 应用图标
 ├── config/                      # 配置文件
 │   └── settings.yaml            # 组件配置
 ├── dist/                        # 构建输出目录
@@ -289,6 +301,119 @@ event_bus.subscribe(EventType.CALC_RESULT, on_calc_result)
 event_bus.publish(EventType.CALC_RESULT, result="2")
 ```
 
+#### 装饰器方式订阅事件（推荐）
+
+单元组件开发推荐使用装饰器方式，无需修改核心代码即可注册事件处理器。
+
+```python
+from app.core.bus import event, event_once, event_pattern, event_wildcard, register_component_handlers
+
+class MyComponent:
+    @event("user.login")
+    def on_user_login(self, event_name, **kwargs):
+        """处理用户登录事件"""
+        print(f"用户登录: {kwargs.get('username')}")
+    
+    @event_once("order.completed")
+    def on_order_once(self, event_name, **kwargs):
+        """一次性事件，只触发一次"""
+        print("订单完成")
+    
+    @event_pattern("user.*")
+    def on_user_pattern(self, event_name, **kwargs):
+        """模式匹配，匹配 user.login, user.logout 等"""
+        print(f"用户事件: {event_name}")
+    
+    @event_wildcard()
+    def on_all_events(self, event_name, **kwargs):
+        """通配符匹配，匹配所有事件"""
+        print(f"收到事件: {event_name}")
+
+# 自动注册组件内的所有事件处理器
+component = MyComponent()
+register_component_handlers(component)
+```
+
+#### 事件发布装饰器
+
+使用 `@emitter` 装饰器让方法自动发布事件。
+
+```python
+from app.core.bus import emitter
+
+class OrderService:
+    @emitter("order.created")
+    def create_order(self, order_id):
+        """创建订单后自动发布事件"""
+        return f"订单 {order_id} 已创建"
+```
+
+#### 事件优先级
+
+支持按优先级控制处理器执行顺序，优先级高的处理器先执行。
+
+```python
+from app.core.bus import event, EventPriority
+
+class PriorityComponent:
+    @event("data.ready", priority=EventPriority.HIGHEST)
+    def handler_highest(self, event_name, **kwargs):
+        """最高优先级，最先执行"""
+        print("HIGHEST")
+    
+    @event("data.ready", priority=EventPriority.HIGH)
+    def handler_high(self, event_name, **kwargs):
+        """高优先级"""
+        print("HIGH")
+    
+    @event("data.ready", priority=EventPriority.NORMAL)
+    def handler_normal(self, event_name, **kwargs):
+        """普通优先级"""
+        print("NORMAL")
+    
+    @event("data.ready", priority=EventPriority.LOW)
+    def handler_low(self, event_name, **kwargs):
+        """低优先级"""
+        print("LOW")
+```
+
+#### 命名空间
+
+使用命名空间避免事件名冲突，适合多模块协作。
+
+```python
+from app.core.bus import set_namespace, event
+
+# 设置命名空间前缀
+set_namespace("myapp")
+
+# 事件名自动添加前缀: myapp.user.login
+class UserModule:
+    @event("user.login")
+    def on_login(self, event_name, **kwargs):
+        print(f"收到: {event_name}")  # 实际收到: myapp.user.login
+```
+
+#### 动态订阅
+
+运行时动态订阅事件，适合不确定事件类型的场景。
+
+```python
+from app.core.bus import subscribe_dynamic, subscribe_pattern_dynamic, subscribe_once_dynamic
+
+def on_dynamic_event(event_name, **kwargs):
+    print(f"动态订阅: {event_name}")
+
+# 动态订阅
+subscribe_dynamic("custom.event", on_dynamic_event)
+
+# 动态模式订阅
+subscribe_pattern_dynamic("data.*", on_dynamic_event)
+
+# 一次性动态订阅
+subscribe_once_dynamic("once.event", on_dynamic_event)
+```
+
 ### 组件接口 ICell
 
 所有组件必须实现的统一接口规范。
@@ -334,6 +459,41 @@ class MessageHandler:
         else:
             # 事件消息格式
             return self._handle_event_message(message)
+```
+
+#### 自动 JSON 解析
+
+MessageHandler 自动识别 Args 是否为 JSON 格式：
+
+- Args 以 `{` 开头 → 解析为 `dict`
+- Args 以 `[` 开头 → 解析为 `list`
+- 其他情况 → 作为原始 `str` 传递
+
+```javascript
+// 简单参数
+window.mbQuery(0, 'greeter:greet:你好', callback)
+
+// 复杂数据（自动解析为 dict）
+let userData = JSON.stringify({name: "Alice", age: 25});
+window.mbQuery(0, `user:create:${userData}`, callback)
+```
+
+```python
+# 组件直接接收 dict，无需 json.loads
+def _cmd_create(self, user_data: dict):
+    name = user_data.get('name')  # user_data 已是 dict
+    return f"用户 {name} 创建成功"
+```
+
+#### 异步执行支持
+
+耗时操作可使用异步执行避免阻塞 UI：
+
+```python
+# 前端调用时指定 async_exec=True
+window.mbQuery(0, 'file:read:C:/large.txt:async', callback)
+
+# 后端自动提交到线程池，立即返回 "Task submitted to thread pool"
 ```
 
 ### 桥接层 MiniBlinkBridge
@@ -413,56 +573,85 @@ class FileManager(ICell):
 
 本节列出 Cellium 框架的所有公共 API。
 
-### 事件总线 EventBus
+### 标题栏处理器 TitleBarHandler
 
-事件总线提供组件间的解耦通信机制。
-
-```python
-from app.core import event_bus, EventType
-
-# 订阅事件
-def on_calc_result(result):
-    print(f"计算结果: {result}")
-
-event_bus.subscribe(EventType.CALC_RESULT, on_calc_result)
-
-# 发布事件
-event_bus.publish(EventType.CALC_RESULT, result="2")
-```
+标题栏处理器封装窗口控制操作，提供统一的 API 供前端调用，支持最小化、最大化、还原、关闭等窗口操作。
 
 #### 核心方法
 
-| 方法 | 说明 |
-|------|------|
-| `subscribe(event_type, handler)` | 订阅事件，handler 为回调函数 |
-| `publish(event_type, *args, **kwargs)` | 发布事件，触发所有订阅者 |
-| `unsubscribe(event_type, handler)` | 取消订阅 |
-| `register_event_class(event_type, event_class)` | 注册事件类 |
-| `has_subscribers(event_type)` | 检查是否有订阅者 |
-| `clear()` | 清空所有订阅 |
-| `get_subscribers_count(event_type)` | 获取订阅者数量 |
+| 方法 | 说明 | 返回值 |
+|------|------|--------|
+| `minimize()` | 最小化窗口 | `"OK"` 或错误信息 |
+| `maximize()` | 最大化窗口 | `"OK"` 或错误信息 |
+| `restore()` | 还原窗口 | `"OK"` 或错误信息 |
+| `toggle_maximize()` | 切换最大化/还原状态 | `"OK"` 或错误信息 |
+| `close(force=False)` | 关闭窗口 | `"OK"` 或错误信息 |
+| `show()` | 显示窗口 | `"OK"` 或错误信息 |
+| `hide()` | 隐藏窗口 | `"OK"` 或错误信息 |
+| `set_title(title)` | 设置窗口标题 | `"OK"` 或错误信息 |
+| `get_title()` | 获取当前窗口标题 | 标题字符串 |
+| `start_drag()` | 开始拖动窗口 | `"OK"` 或错误信息 |
+| `flash(invert=False)` | 闪烁窗口任务栏按钮 | `"OK"` 或错误信息 |
+| `set_always_on_top(enable)` | 设置窗口置顶状态 | `"OK"` 或错误信息 |
+| `get_state()` | 获取窗口当前状态 | 状态字典 |
+| `resize(width, height)` | 调整窗口大小 | `"OK"` 或错误信息 |
+| `move(x, y)` | 移动窗口位置 | `"OK"` 或错误信息 |
+| `center()` | 将窗口居中显示 | `"OK"` 或错误信息 |
+| `execute(command, *args)` | 执行命令（ICell 接口兼容） | 命令执行结果 |
 
-#### 事件类型 EventType
+#### 前端调用示例
 
-| 事件类型 | 说明 |
-|---------|------|
-| `EventType.NAVIGATION` | 页面导航事件 |
-| `EventType.ALERT` | Alert 弹窗事件 |
-| `EventType.JSQUERY` | JsQuery 查询事件 |
-| `EventType.FADE_OUT` | 窗口淡出事件 |
-| `EventType.WINDOW_RESIZE` | 窗口大小变化事件 |
-| `EventType.WINDOW_MOVE` | 窗口移动事件 |
-| `EventType.BUTTON_CLICK` | 按钮点击事件 |
-| `EventType.CALC_RESULT` | 计算器结果事件 |
-| `EventType.SYSTEM_COMMAND` | 系统命令事件 |
+```javascript
+// 最小化窗口
+window.mbQuery(0, 'titlebar:minimize', function() {});
 
-#### 事件模型
+// 最大化/还原窗口
+window.mbQuery(0, 'titlebar:toggle', function() {});
 
-| 类 | 说明 | 属性 |
-|---|------|------|
-| `NavigationEvent` | 导航事件 | `navigation_type`, `url` |
-| `AlertEvent` | Alert 事件 | `message` |
-| `JsQueryEvent` | JsQuery 事件 | `webview`, `query_id`, `custom_msg`, `message` |
+// 关闭窗口
+window.mbQuery(0, 'titlebar:close', function() {});
+
+// 设置窗口标题
+window.mbQuery(0, 'titlebar:setTitle:我的应用', function(response) {
+    console.log(response);
+});
+
+// 开始拖动（在前端 mousedown 时调用）
+window.mbQuery(0, 'titlebar:startDrag', function() {});
+
+// 闪烁窗口任务栏按钮
+window.mbQuery(0, 'titlebar:flash', function() {});
+
+// 设置窗口置顶
+window.mbQuery(0, 'titlebar:setAlwaysOnTop:true', function() {});
+
+// 获取窗口状态
+window.mbQuery(0, 'titlebar:getState', function(customMsg, response) {
+    console.log(response);
+    // 输出: {"state": "maximized", "isMaximized": true, ...}
+});
+
+// 调整窗口大小
+window.mbQuery(0, 'titlebar:resize:1024:768', function() {});
+
+// 移动窗口位置
+window.mbQuery(0, 'titlebar:move:100:100', function() {});
+
+// 窗口居中显示
+window.mbQuery(0, 'titlebar:center', function() {});
+```
+
+#### 窗口状态 get_state 返回值
+
+```python
+{
+    "state": "maximized",      # 状态: "normal", "minimized", "maximized", "restored"
+    "isMaximized": True,       # 是否最大化
+    "isMinimized": False,      # 是否最小化
+    "isAlwaysOnTop": False,    # 是否置顶
+    "title": "我的应用"         # 窗口标题
+}
+```
 
 ### 依赖注入 DI
 
@@ -740,20 +929,28 @@ components = load_components(container, debug=True)
 
 ### 命令调用格式
 
-前端通过 `pycmd()` 函数调用组件：
+前端通过 `window.mbQuery()` 函数调用组件：
 
 ```javascript
 // 计算表达式
-pycmd('calculator:calc:1+1')
+window.mbQuery(0, 'calculator:calc:1+1', function(customMsg, response) {
+    console.log(response);
+})
 
 // 读取文件
-pycmd('filemanager:read:C:/test.txt')
+window.mbQuery(0, 'filemanager:read:C:/test.txt', function(customMsg, response) {
+    console.log(response);
+})
 
 // 写入文件
-pycmd('filemanager:write:C:/test.txt:Hello World')
+window.mbQuery(0, 'filemanager:write:C:/test.txt:Hello World', function(customMsg, response) {
+    console.log(response);
+})
 
 // 调用自定义组件
-pycmd('mycell:greet:Cellium')
+window.mbQuery(0, 'mycell:greet:Cellium', function(customMsg, response) {
+    console.log(response);
+})
 ```
 
 ## 配置指南
@@ -810,8 +1007,8 @@ if __name__ == "__main__":
 
 ```javascript
 // 在 HTML/JavaScript 中
-<button onclick="pycmd('calculator:calc:1+1')">计算 1+1</button>
-<button onclick="pycmd('calculator:calc:2*3')">计算 2*3</button>
+<button onclick="window.mbQuery(0, 'calculator:calc:1+1', function(customMsg, response){ document.getElementById('result').innerText = response; })">计算 1+1</button>
+<button onclick="window.mbQuery(0, 'calculator:calc:2*3', function(customMsg, response){ document.getElementById('result').innerText = response; })">计算 2*3</button>
 ```
 
 ### 3. 查看组件列表

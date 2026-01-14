@@ -3,8 +3,9 @@
 **Documentation Website:** [https://xiaojinao.github.io/Cellium/](https://xiaojinao.github.io/Cellium/) (Recommended | Better Reading Experience)
 
 **Documentation Navigation:**
-- [Multiprocessing Tutorial](docs/multiprocessing-tutorial.en.md) | [多进程教程](docs/multiprocessing-tutorial.md)
-- [Component Tutorial](docs/component-tutorial.en.md) | [组件开发教程](docs/component-tutorial.md)
+- [Component Tutorial](component-tutorial.en.md) | [组件开发教程（中文）](component-tutorial.md)
+- [Multiprocessing Tutorial](multiprocessing-tutorial.en.md) | [多进程教程（中文）](multiprocessing-tutorial.md)
+- [Event Mode Tutorial](event-mode-tutorial.en.md) | [事件模式教程（中文）](event-mode-tutorial.md)
 
 <p align="center">
   <img src="logo.png" alt="Cellium Logo" width="400">
@@ -42,7 +43,7 @@ class Greeter(ICell):
 
 ```html
 <!-- html/index.html -->
-<button onclick="pycmd('greeter:greet:Hello')">Greet</button>
+<button onclick="window.mbQuery(0, 'greeter:greet:Hello', function(){})">Greet</button>
 ```
 
 Choose Cellium: **Build desktop apps quickly with your familiar Python and Web technologies.**
@@ -121,7 +122,7 @@ flowchart TB
     subgraph Frontend["Frontend Layer"]
         H["HTML/CSS"]
         J["JavaScript"]
-        P["pycmd() Call"]
+        MB["window.mbQuery() Call"]
     end
 
     Core["Cellium Micro-Kernel"]
@@ -132,7 +133,7 @@ flowchart TB
         Custom["Custom Component"]
     end
 
-    Frontend -->|"pycmd('cell:command:args')"| Core
+    Frontend -->|window.mbQuery(0, 'cell:command:args')| Core
     Core --> Backend
 ```
 
@@ -179,7 +180,7 @@ flowchart TB
 ```mermaid
 flowchart TD
     A["User Action"] --> B["JavaScript HTML/CSS"]
-    B -->|"pycmd calculator:calc:1+1"| C["MiniBlinkBridge Receives Callback"]
+    B -->|window.mbQuery(0, 'calculator:calc:1+1')| C["MiniBlinkBridge Receives Callback"]
     C --> D["MessageHandler Command Parsing and Routing"]
     
     D --> E{Processing Mode}
@@ -197,13 +198,15 @@ flowchart TD
 ## Directory Structure
 
 ```
-cellium/
+python-miniblink/
 ├── app/
 │   ├── core/                    # Micro-kernel modules
 │   │   ├── __init__.py          # Module exports
 │   │   ├── bus/                 # Event bus
 │   │   │   ├── __init__.py
-│   │   │   └── event_bus.py     # Event bus implementation
+│   │   │   ├── event_bus.py     # Event bus implementation
+│   │   │   ├── events.py        # Event type definitions
+│   │   │   └── event_models.py  # Event model definitions
 │   │   ├── window/              # Window management
 │   │   │   ├── __init__.py
 │   │   │   └── main_window.py   # Main window
@@ -212,7 +215,8 @@ cellium/
 │   │   │   └── miniblink_bridge.py  # MiniBlink communication bridge
 │   │   ├── handler/             # Message processing
 │   │   │   ├── __init__.py
-│   │   │   └── message_handler.py   # Message handler (command routing)
+│   │   │   ├── message_handler.py   # Message handler (command routing)
+│   │   │   └── title_bar_handler.py # Title bar handler
 │   │   ├── util/                # Utility modules
 │   │   │   ├── __init__.py
 │   │   │   ├── logger.py        # Logging management
@@ -224,18 +228,26 @@ cellium/
 │   │   ├── interface/           # Interface definitions
 │   │   │   ├── __init__.py
 │   │   │   └── icell.py         # ICell component interface
-│   │   ├── events.py            # Event type definitions
-│   │   └── event_models.py      # Event model definitions
-│   ├── components/                   # Component units
+│   │   └── __init__.py          # Module exports
+│   ├── components/              # Component units
 │   │   ├── __init__.py
-│   │   └── calculator.py        # Calculator component
-│   └── __init__.py              # Application entry
+│   │   ├── calculator.py        # Calculator component
+│   │   └── greeter.py           # Greeter component
+│   └── __init__.py              # Module exports
+├── docs/                        # Documentation tutorials
+│   ├── index.md                 # Documentation home
+│   ├── index.en.md              # Documentation home (English)
+│   ├── component-tutorial.md    # Component tutorial
+│   ├── component-tutorial.en.md # Component tutorial (English)
+│   ├── event-mode-tutorial.md   # Event mode tutorial
+│   ├── event-mode-tutorial.en.md # Event mode tutorial (English)
+│   ├── multiprocessing-tutorial.md   # Multiprocessing tutorial
+│   └── multiprocessing-tutorial.en.md # Multiprocessing tutorial (English)
 ├── html/                        # HTML resources
 │   └── index.html               # Main page
 ├── font/                        # Font files
 ├── dll/                         # DLL files
 │   └── mb132_x64.dll            # MiniBlink engine
-├── app_icon.ico                 # Application icon
 ├── config/                      # Configuration files
 │   └── settings.yaml            # Component configuration
 ├── dist/                        # Build output directory
@@ -287,6 +299,119 @@ event_bus.subscribe(EventType.CALC_RESULT, on_calc_result)
 event_bus.publish(EventType.CALC_RESULT, result="2")
 ```
 
+#### Decorator-based Event Subscription (Recommended)
+
+For component development, using decorators is recommended to register event handlers without modifying core code.
+
+```python
+from app.core.bus import event, event_once, event_pattern, event_wildcard, register_component_handlers
+
+class MyComponent:
+    @event("user.login")
+    def on_user_login(self, event_name, **kwargs):
+        """Handle user login event"""
+        print(f"User logged in: {kwargs.get('username')}")
+    
+    @event_once("order.completed")
+    def on_order_once(self, event_name, **kwargs):
+        """One-time event, triggers only once"""
+        print("Order completed")
+    
+    @event_pattern("user.*")
+    def on_user_pattern(self, event_name, **kwargs):
+        """Pattern matching, matches user.login, user.logout, etc."""
+        print(f"User event: {event_name}")
+    
+    @event_wildcard()
+    def on_all_events(self, event_name, **kwargs):
+        """Wildcard matching, matches all events"""
+        print(f"Received event: {event_name}")
+
+# Automatically register all event handlers in the component
+component = MyComponent()
+register_component_handlers(component)
+```
+
+#### Event Emitter Decorator
+
+Use the `@emitter` decorator to automatically publish events when a method is called.
+
+```python
+from app.core.bus import emitter
+
+class OrderService:
+    @emitter("order.created")
+    def create_order(self, order_id):
+        """Automatically publish event after creating order"""
+        return f"Order {order_id} created"
+```
+
+#### Event Priority
+
+Supports controlling handler execution order by priority, with higher priority handlers executing first.
+
+```python
+from app.core.bus import event, EventPriority
+
+class PriorityComponent:
+    @event("data.ready", priority=EventPriority.HIGHEST)
+    def handler_highest(self, event_name, **kwargs):
+        """Highest priority, executes first"""
+        print("HIGHEST")
+    
+    @event("data.ready", priority=EventPriority.HIGH)
+    def handler_high(self, event_name, **kwargs):
+        """High priority"""
+        print("HIGH")
+    
+    @event("data.ready", priority=EventPriority.NORMAL)
+    def handler_normal(self, event_name, **kwargs):
+        """Normal priority"""
+        print("NORMAL")
+    
+    @event("data.ready", priority=EventPriority.LOW)
+    def handler_low(self, event_name, **kwargs):
+        """Low priority"""
+        print("LOW")
+```
+
+#### Namespace
+
+Use namespaces to avoid event name conflicts, suitable for multi-module collaboration.
+
+```python
+from app.core.bus import set_namespace, event
+
+# Set namespace prefix
+set_namespace("myapp")
+
+# Event names automatically get prefix: myapp.user.login
+class UserModule:
+    @event("user.login")
+    def on_login(self, event_name, **kwargs):
+        print(f"Received: {event_name}")  # Actually receives: myapp.user.login
+```
+
+#### Dynamic Subscription
+
+Dynamically subscribe to events at runtime, suitable for scenarios with uncertain event types.
+
+```python
+from app.core.bus import subscribe_dynamic, subscribe_pattern_dynamic, subscribe_once_dynamic
+
+def on_dynamic_event(event_name, **kwargs):
+    print(f"Dynamic subscription: {event_name}")
+
+# Dynamic subscription
+subscribe_dynamic("custom.event", on_dynamic_event)
+
+# Dynamic pattern subscription
+subscribe_pattern_dynamic("data.*", on_dynamic_event)
+
+# One-time dynamic subscription
+subscribe_once_dynamic("once.event", on_dynamic_event)
+```
+
 ### ICell Interface
 
 The unified interface specification that all components must implement.
@@ -332,6 +457,41 @@ class MessageHandler:
         else:
             # Event message format
             return self._handle_event_message(message)
+```
+
+#### Automatic JSON Parsing
+
+MessageHandler automatically detects if Args is JSON format:
+
+- Args starts with `{` → parse as `dict`
+- Args starts with `[` → parse as `list`
+- Other cases → pass as raw `str`
+
+```javascript
+// Simple parameters
+window.mbQuery(0, 'greeter:greet:Hello', callback)
+
+// Complex data (automatically parsed as dict)
+let userData = JSON.stringify({name: "Alice", age: 25});
+window.mbQuery(0, `user:create:${userData}`, callback)
+```
+
+```python
+# Component receives dict directly, no json.loads needed
+def _cmd_create(self, user_data: dict):
+    name = user_data.get('name')  # user_data is already a dict
+    return f"User {name} created successfully"
+```
+
+#### Async Execution Support
+
+For time-consuming operations, use async execution to avoid blocking UI:
+
+```python
+# Frontend call with async_exec=True
+window.mbQuery(0, 'file:read:C:/large.txt:async', callback)
+
+# Backend automatically submits to thread pool, returns immediately "Task submitted to thread pool"
 ```
 
 ### MiniBlinkBridge
@@ -410,57 +570,6 @@ All components must implement the following three methods:
 ## API Reference
 
 This section lists all public APIs of the Cellium framework.
-
-### EventBus
-
-The event bus provides decoupled communication between components.
-
-```python
-from app.core import event_bus, EventType
-
-# Subscribe to events
-def on_calc_result(result):
-    print(f"Calculation result: {result}")
-
-event_bus.subscribe(EventType.CALC_RESULT, on_calc_result)
-
-# Publish events
-event_bus.publish(EventType.CALC_RESULT, result="2")
-```
-
-#### Core Methods
-
-| Method | Description |
-|--------|-------------|
-| `subscribe(event_type, handler)` | Subscribe to event, handler is callback function |
-| `publish(event_type, *args, **kwargs)` | Publish event, trigger all subscribers |
-| `unsubscribe(event_type, handler)` | Unsubscribe |
-| `register_event_class(event_type, event_class)` | Register event class |
-| `has_subscribers(event_type)` | Check if there are subscribers |
-| `clear()` | Clear all subscriptions |
-| `get_subscribers_count(event_type)` | Get subscriber count |
-
-#### EventType
-
-| Event Type | Description |
-|------------|-------------|
-| `EventType.NAVIGATION` | Page navigation event |
-| `EventType.ALERT` | Alert popup event |
-| `EventType.JSQUERY` | JsQuery query event |
-| `EventType.FADE_OUT` | Window fade out event |
-| `EventType.WINDOW_RESIZE` | Window resize event |
-| `EventType.WINDOW_MOVE` | Window move event |
-| `EventType.BUTTON_CLICK` | Button click event |
-| `EventType.CALC_RESULT` | Calculator result event |
-| `EventType.SYSTEM_COMMAND` | System command event |
-
-#### Event Models
-
-| Class | Description | Attributes |
-|-------|-------------|------------|
-| `NavigationEvent` | Navigation event | `navigation_type`, `url` |
-| `AlertEvent` | Alert event | `message` |
-| `JsQueryEvent` | JsQuery event | `webview`, `query_id`, `custom_msg`, `message` |
 
 ### Dependency Injection DI
 
@@ -617,20 +726,28 @@ components = load_components(container, debug=True)
 
 ### Command Format
 
-Frontend calls components through the `pycmd()` function:
+Frontend calls components through the `window.mbQuery()` function:
 
 ```javascript
 // Calculate expression
-pycmd('calculator:calc:1+1')
+window.mbQuery(0, 'calculator:calc:1+1', function(customMsg, response) {
+    console.log(response);
+})
 
 // Read file
-pycmd('filemanager:read:C:/test.txt')
+window.mbQuery(0, 'filemanager:read:C:/test.txt', function(customMsg, response) {
+    console.log(response);
+})
 
 // Write file
-pycmd('filemanager:write:C:/test.txt:Hello World')
+window.mbQuery(0, 'filemanager:write:C:/test.txt:Hello World', function(customMsg, response) {
+    console.log(response);
+})
 
 // Call custom component
-pycmd('mycell:greet:Cellium')
+window.mbQuery(0, 'mycell:greet:Cellium', function(customMsg, response) {
+    console.log(response);
+})
 ```
 
 ## Configuration Guide
@@ -687,8 +804,8 @@ if __name__ == "__main__":
 
 ```javascript
 // In HTML/JavaScript
-<button onclick="pycmd('calculator:calc:1+1')">Calculate 1+1</button>
-<button onclick="pycmd('calculator:calc:2*3')">Calculate 2*3</button>
+<button onclick="window.mbQuery(0, 'calculator:calc:1+1', function(customMsg, response){ document.getElementById('result').innerText = response; })">Calculate 1+1</button>
+<button onclick="window.mbQuery(0, 'calculator:calc:2*3', function(customMsg, response){ document.getElementById('result').innerText = response; })">Calculate 2*3</button>
 ```
 
 ### 3. View Component List

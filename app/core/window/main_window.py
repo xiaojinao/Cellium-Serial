@@ -65,11 +65,13 @@ class WINDOWPLACEMENT(ctypes.Structure):
     ]
 
 def _get_project_root():
-    """获取项目根目录（相对于程序入口文件）"""
-    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+    """获取项目根目录"""
+    if "__compiled__" in globals():
+        return pathlib.Path(__file__).resolve().parent.parent.parent.parent
+    elif getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
         return pathlib.Path(sys._MEIPASS)
-    entry_point = sys.argv[0] if sys.argv[0] else __file__
-    return pathlib.Path(entry_point).resolve().parent
+    else:
+        return pathlib.Path(sys.argv[0] if sys.argv[0] else __file__).resolve().parent
 
 
 class MainWindow:

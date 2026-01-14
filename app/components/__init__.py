@@ -5,5 +5,6 @@
 """
 
 from .calculator import Calculator
+from .jsontest import JsonTestCell
 
-__all__ = ['Calculator']
+__all__ = ['Calculator', 'JsonTestCell']

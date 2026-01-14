@@ -41,7 +41,9 @@ def clear_registry():
 
 def get_config_path() -> pathlib.Path:
     """获取配置文件路径"""
-    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+    if "__compiled__" in globals():
+        base_path = pathlib.Path(__file__).resolve().parent.parent.parent.parent
+    elif getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
         base_path = pathlib.Path(sys._MEIPASS)
     else:
         entry_point = sys.argv[0] if sys.argv[0] else __file__

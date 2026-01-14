@@ -4,8 +4,10 @@
 
 ## 教程
 
-- [组件开发教程](component-tutorial.en.md) | [组件开发教程（中文）](component-tutorial.md)
-- [多进程教程](multiprocessing-tutorial.en.md) | [多进程教程（中文）](multiprocessing-tutorial.md)
+- [Component Tutorial](component-tutorial.en.md) | [组件开发教程（中文）](component-tutorial.md)
+- [Multiprocessing Tutorial](multiprocessing-tutorial.en.md) | [多进程教程（中文）](multiprocessing-tutorial.md)
+- [Event Mode Tutorial](event-mode-tutorial.en.md) | [事件模式教程（中文）](event-mode-tutorial.md)
+- [Logging Tutorial](logging-tutorial.en.md) | [日志使用（中文）](logging-tutorial.md)
 
 > **"CPU 有多个核心，为什么只用一个？让耗时任务在后台悄悄完成，不阻塞主界面。"**
 
@@ -147,7 +149,7 @@ class Calculator(ICell):
 
 ```mermaid
 flowchart LR
-    A["前端 pycmd<br>pycmd('calculator:calc:1+1')"] --> B["Calculator 组件"]
+    A["前端 window.mbQuery<br>window.mbQuery(0, 'calculator:calc:1+1', function(){})"] --> B["Calculator 组件"]
     B --> C["mp_manager.submit"]
     C --> D["子进程执行<br>_calculate_impl"]
     D --> E["返回结果"]

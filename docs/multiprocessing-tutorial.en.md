@@ -2,10 +2,12 @@
 
 [中文](index.md)|[English](index.en.md)
 
-## 教程
+## Tutorials
 
 - [Component Tutorial](component-tutorial.en.md) | [组件开发教程（中文）](component-tutorial.md)
 - [Multiprocessing Tutorial](multiprocessing-tutorial.en.md) | [多进程教程（中文）](multiprocessing-tutorial.md)
+- [Event Mode Tutorial](event-mode-tutorial.en.md) | [事件模式教程（中文）](event-mode-tutorial.md)
+- [Logging Tutorial](logging-tutorial.en.md) | [日志使用（中文）](logging-tutorial.md)
 
 > **"Your CPU has multiple cores, why use only one? Let time-consuming tasks run in the background without blocking the UI."**
 
@@ -147,7 +149,7 @@ class Calculator(ICell):
 
 ```mermaid
 flowchart LR
-    A["Frontend pycmd<br>pycmd('calculator:calc:1+1')"] --> B["Calculator Component"]
+    A["Frontend window.mbQuery<br>window.mbQuery(0, 'calculator:calc:1+1', function(){})"] --> B["Calculator Component"]
     B --> C["mp_manager.submit"]
     C --> D["Child Process<br>_calculate_impl"]
     D --> E["Return Result"]

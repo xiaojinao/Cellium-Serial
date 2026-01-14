@@ -4,19 +4,77 @@
 
 ## 教程
 
-- [组件开发教程](component-tutorial.en.md) | [组件开发教程（中文）](component-tutorial.md)
-- [多进程教程](multiprocessing-tutorial.en.md) | [多进程教程（中文）](multiprocessing-tutorial.md)
+- [Component Tutorial](component-tutorial.en.md) | [组件开发教程（中文）](component-tutorial.md)
+- [Multiprocessing Tutorial](multiprocessing-tutorial.en.md) | [多进程教程（中文）](multiprocessing-tutorial.md)
+- [Event Mode Tutorial](event-mode-tutorial.en.md) | [事件模式教程（中文）](event-mode-tutorial.md)
+- [Logging Tutorial](logging-tutorial.en.md) | [日志使用（中文）](logging-tutorial.md)
 
 > **"在 Cellium 中，写一个功能模块就像写一个简单的 Python 函数一样自然，而剩下的复杂通信，交给微内核。"**
 
 本教程通过一个完整的示例，演示如何从零开始创建 Cellium 组件。我们将构建一个「问候组件」，它接收前端输入的文字，在后面添加「Hallo Cellium」后缀，然后返回显示。
+
+## 通信模式
+
+Cellium 支持两种通信模式，开发者可以根据场景选择：
+
+### 1. 命令模式（Command Mode）
+
+前端调用后端组件的方法，适用于**请求-响应**场景。
+
+```python
+# 后端组件
+class Greeter(ICell):
+    def execute(self, command: str, *args, **kwargs):
+        if command == "greet":
+            return f"{args[0]} Hallo Cellium"
+
+# 前端调用
+window.mbQuery(0, 'greeter:greet:你好', function(){})
+```
+
+**特点**：
+- 一对一通信，直接调用组件方法
+- 支持返回值（同步响应）
+- 适合简单的请求-响应交互
+
+### 2. 事件模式（Event Mode）
+
+基于发布-订阅的事件总线，适用于**解耦通知**场景。
+
+```python
+# 后端组件订阅事件
+from app.core.bus import event
+
+class Logger:
+    @event("user.login")
+    def on_login(self, event_name, **kwargs):
+        print(f"用户登录: {kwargs.get('username')}")
+
+# 前端发布事件
+window.mbQuery(0, 'bus:publish:user.login:{"username":"Alice"}', function(){})
+```
+
+**特点**：
+- 一对多通信，多个组件可订阅同一事件
+- 无返回值（异步通知）
+- 适合跨组件的解耦通信
+
+### 模式对比
+
+| 特性 | 命令模式 | 事件模式 |
+|------|---------|---------|
+| 通信方式 | 前端 → 后端组件 | 前端 → EventBus → 多个订阅者 |
+| 返回值 | 有（同步响应） | 无（异步通知） |
+| 适用场景 | 请求-响应 | 解耦通知 |
+
+> 💡 **本教程**将主要介绍**命令模式**，因为它更直观，适合入门学习。事件模式的详细用法请参考 [事件模式教程](event-mode-tutorial.md) 或 [README.md](README.md#事件总线-eventbus)。
 
 ## 1. Cellium 通信协议
 
 在开始编码之前，我们先理解 Cellium 的核心通信协议。所有的跨层通讯都遵循「细胞寻址协议」：
 
 ```
-pycmd('cell:command:args')
+window.mbQuery(0, 'cell:command:args', function() {})
 ```
 
 | 组成部分 | 说明 | 示例 |
@@ -28,18 +86,109 @@ pycmd('cell:command:args')
 **协议示例：**
 ```
 # 向 greeter 组件发送 greet 命令，参数为 "你好"
-pycmd('greeter:greet:你好')
+window.mbQuery(0, 'greeter:greet:你好', function() {})
 
 # 向 calculator 组件发送 calc 命令，参数为完整表达式 "1+1"
-pycmd('calculator:calc:1+1')
+window.mbQuery(0, 'calculator:calc:1+1', function() {})
 
 # 传递包含冒号的参数（如文件路径）
-pycmd('filemanager:read:C:/test.txt')
+window.mbQuery(0, 'filemanager:read:C:/test.txt', function() {})
 ```
 
 > 💡 **Args 说明**: 参数部分整体作为单个字符串传入。如果需要传递多个参数，请在组件内部自行解析（例如用 `args.split(':')` 拆分）。
 
-这种简洁的协议设计让前端与后端的通信变得直观而强大。
+## 混合模式：指令用字符串，数据用 JSON
+
+Args 部分是纯字符串，因此你可以灵活选择传参方式：
+
+**1. 简单参数（直接字符串）：**
+```javascript
+// 单个简单值
+window.mbQuery(0, 'greeter:greet:你好', callback)
+
+// 多个参数用分隔符（组件自行解析）
+window.mbQuery(0, 'file:read:C:/test.txt:utf-8', callback)
+```
+
+**2. 复杂数据（JSON 字符串）：**
+```javascript
+// 复杂结构用 JSON 序列化
+let userData = JSON.stringify({name: "Alice", age: 25, tags: ["admin", "pro"]});
+window.mbQuery(0, `user:update:${userData}`, callback)
+```
+
+**3. 后端智能解析：**
+
+核心层会自动识别 JSON 参数，无需手动判断：
+
+```python
+# 组件直接接收 dict/list，无需手动 json.loads
+def _cmd_update(self, data: dict):
+    # data 已经是 dict 类型
+    print(f"收到数据: {data}")
+    print(f"用户名: {data.get('name')}")
+    return f"Hello, {data.get('name')}"
+```
+
+| 场景 | 传参方式 | 组件收到 |
+|------|---------|---------|
+| 简单值 | 直接字符串 | `str` 类型 |
+| 复杂结构 | JSON 序列化 | `dict` 或 `list` 类型 |
+| 数组 | JSON 序列化 | `list` 类型 |
+
+> 💡 **自动解析规则**：核心层 `MessageHandler` 会自动识别 Args 是否以 `{` 或 `[` 开头，若是则尝试解析为 JSON。组件的 `execute` 方法会收到解析后的对象（dict/list），而非原始字符串。
+
+### 自动 JSON 解析示例
+
+**前端传递复杂数据：**
+```javascript
+// 传递用户信息对象
+let userInfo = JSON.stringify({
+    name: "Alice",
+    age: 25,
+    skills: ["Python", "Qt", "Cellium"]
+});
+window.mbQuery(0, `user:create:${userInfo}`, function(customMsg, response) {
+    console.log("创建结果:", response);
+});
+```
+
+**后端组件直接使用：**
+```python
+class UserCell(ICell):
+    def _cmd_create(self, user_data: dict):
+        # user_data 直接是 dict，无需 json.loads
+        name = user_data.get('name')
+        age = user_data.get('age')
+        skills = user_data.get('skills', [])
+        
+        # 处理逻辑...
+        return f"用户 {name} 创建成功，年龄 {age}"
+```
+
+### 异步执行支持
+
+对于耗时操作（如文件读写、网络请求），可以使用异步执行避免阻塞 UI：
+
+```python
+class FileCell(ICell):
+    def execute(self, command: str, *args, **kwargs):
+        if command == "read":
+            return self._handle_read(args[0], async_exec=True)
+        return super().execute(command, *args, **kwargs)
+
+    def _handle_read(self, filepath: str, async_exec: bool = False):
+        # 使用 async_exec=True 启用异步执行
+        return self._execute_command("read_large_file", filepath, async_exec=async_exec)
+
+    def _execute_command(self, cmd: str, args, async_exec: bool = False):
+        """通过框架执行命令，支持异步"""
+        command = f"{self.cell_name}:{cmd}:{args}"
+        # async_exec=True 时，命令会提交到线程池执行
+        return self._framework_handler._handle_cell_command(command, async_exec=async_exec)
+```
+
+> 💡 **异步执行说明**：设置 `async_exec=True` 后，命令会提交到线程池执行，方法立即返回 `"Task submitted to thread pool"`。实际结果通过事件总线或其他机制返回。
 
 ## 2. 创建组件文件
 
@@ -95,7 +244,7 @@ class Greeter(ICell):
 
 | 方法 | 说明 |
 |------|------|
-| `cell_name` | 组件唯一标识，小写字母，用于前端 `pycmd()` 调用 |
+| `cell_name` | 组件唯一标识，小写字母，用于前端 `window.mbQuery()` 调用 |
 | `execute(command, *args)` | 执行具体命令，`command` 是命令名，`*args` 是参数 |
 | `get_commands()` | 返回命令说明字典，供前端参考 |
 
@@ -103,7 +252,7 @@ class Greeter(ICell):
 
 ```mermaid
 flowchart LR
-    A["前端 pycmd<br>pycmd('greeter:greet:你好')"] --> B["MessageHandler<br>解析命令"]
+    A["前端 window.mbQuery<br>window.mbQuery(0, 'greeter:greet:你好', function(){})"] --> B["MessageHandler<br>解析命令"]
     B --> C["找到 greeter 组件"]
     C --> D["调用 execute<br>execute('greet', '你好')"]
     D --> E["执行 _cmd_greet<br>返回结果"]
@@ -208,13 +357,9 @@ enabled_components:
             }
             
             // 调用 Greeter 组件
-            pycmd('greeter:greet:' + text);
-        }
-        
-        // 监听来自后端的消息
-        function onpycmdresult(result) {
-            var resultDiv = document.getElementById('result');
-            resultDiv.textContent = result;
+            window.mbQuery(0, 'greeter:greet:' + text, function(customMsg, response) {
+                document.getElementById('result').textContent = response;
+            });
         }
     </script>
 </body>
@@ -232,8 +377,8 @@ sequenceDiagram
     participant C as Greeter 组件
 
     F->>F: 1. 用户输入 "你好"
-    F->>F: 2. 点击按钮调用 pycmd
-    F->>M: 3. pycmd('greeter:greet:你好')
+    F->>F: 2. 点击按钮调用 window.mbQuery
+    F->>M: 3. window.mbQuery(0, 'greeter:greet:你好', function(){})
     
     M->>M: 解析命令格式
     M->>M: 查找 greeter 组件
@@ -242,7 +387,7 @@ sequenceDiagram
     C->>C: 5. 执行 _cmd_greet 处理逻辑
     C-->>M: 6. 返回 "你好 Hallo Cellium"
     
-    M-->>F: 7. onpycmdresult() 回调
+    M-->>F: 7. 回调函数执行
     F->>F: 8. 更新页面显示结果
 ```
 
@@ -253,7 +398,7 @@ sequenceDiagram
 | 1 | 输入「你好」 | 接收参数 | — |
 | 2 | 点击「发送问候」 | 添加后缀 | — |
 | 3 | — | 返回「你好 Hallo Cellium」 | — |
-| 4 | onpycmdresult 回调 | — | 「你好 Hallo Cellium」 |
+| 4 | 回调函数执行 | — | 「你好 Hallo Cellium」 |
 
 ## 7. 扩展功能
 
@@ -292,7 +437,9 @@ def _cmd_reverse(self, text: str = "") -> str:
 
 ```javascript
 // 反转问候
-pycmd('greeter:reverse:Cellium')
+window.mbQuery(0, 'greeter:reverse:Cellium', function(customMsg, response) {
+    console.log(response);
+})
 // 结果: "malloC Hallo Cellium"
 ```
 
@@ -339,7 +486,7 @@ enabled_components:
 if command == "greet":  # 这里是 "greet"
 
 # 前端调用
-pycmd('greeter:greet:xxx')  # 也要用 "greet"
+window.mbQuery(0, 'greeter:greet:xxx', function(){})  # 也要用 "greet"
 ```
 
 **问：如何传递多个参数？**
@@ -356,7 +503,7 @@ def execute(self, command: str, *args, **kwargs):
         prefix = parts[1] if len(parts) > 1 else "Hello"  # "Hello"
 
 # 前端
-pycmd('greeter:greet:Alice:Hello')
+window.mbQuery(0, 'greeter:greet:Alice:Hello', function(){})
 ```
 
 ## 10. 完整文件清单
