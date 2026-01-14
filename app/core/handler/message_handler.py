@@ -8,10 +8,6 @@
     mbQuery(0, 'greeter:greet:你好', callback)
     mbQuery(0, 'calculator:calc:1+1', callback)
 
-特性：
-- 智能参数解析：自动识别 JSON 字符串并解析为 dict/list
-- 统一命令分发：所有带冒号的命令统一走 _handle_cell_command
-- 异步执行支持：耗时操作自动在线程池执行
 """
 
 import json
@@ -74,7 +70,7 @@ class MessageHandler:
             return (None, None, None)
     
     def _parse_args(self, args: str) -> Any:
-        """智能参数解析
+        """参数解析
         
         自动识别 JSON 字符串：
         - 以 '{' 开头 -> 尝试解析为 dict
