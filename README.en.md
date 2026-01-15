@@ -677,6 +677,93 @@ class MyComponent:
 | `get_element_value(element_id, callback)` | Get element value (async) | `bridge.get_element_value('input', callback)` |
 | `setup_all_callbacks()` | Setup all MiniBlink callbacks | Call during initialization |
 
+### TitleBarHandler
+
+The title bar handler encapsulates window control operations, providing a unified API for frontend calls.
+
+#### Frontend Call Format
+
+All commands use the `titlebar:<command>[:args]` format:
+
+| Frontend Command | Description | Example |
+|-----------------|-------------|---------|
+| `titlebar:minimize` | Minimize window | `titlebar:minimize` |
+| `titlebar:toggle` | Toggle maximize/restore | `titlebar:toggle` |
+| `titlebar:restore` | Restore window | `titlebar:restore` |
+| `titlebar:close` | Close window | `titlebar:close` |
+| `titlebar:show` | Show window | `titlebar:show` |
+| `titlebar:hide` | Hide window | `titlebar:hide` |
+| `titlebar:setTitle:<title>` | Set window title | `titlebar:setTitle:My App` |
+| `titlebar:getTitle` | Get window title | `titlebar:getTitle` |
+| `titlebar:startDrag` | Start window drag | `titlebar:startDrag` |
+| `titlebar:flash[:true]` | Flash taskbar button | `titlebar:flash` or `titlebar:flash:true` |
+| `titlebar:setAlwaysOnTop:<true\|false>` | Set always on top | `titlebar:setAlwaysOnTop:true` |
+| `titlebar:getState` | Get window state | `titlebar:getState` |
+| `titlebar:resize:<width>:<height>` | Resize window | `titlebar:resize:1024:768` |
+| `titlebar:move:<x>:<y>` | Move window | `titlebar:move:100:100` |
+| `titlebar:center` | Center window | `titlebar:center` |
+
+#### Frontend Call Examples
+
+```javascript
+// Minimize window
+window.mbQuery(0, 'titlebar:minimize', function() {});
+
+// Toggle maximize/restore
+window.mbQuery(0, 'titlebar:toggle', function() {});
+
+// Close window
+window.mbQuery(0, 'titlebar:close', function() {});
+
+// Set window title
+window.mbQuery(0, 'titlebar:setTitle:My App', function(response) {
+    console.log(response);
+});
+
+// Get window title
+window.mbQuery(0, 'titlebar:getTitle', function(response) {
+    console.log(response);
+});
+
+// Start drag (call on frontend mousedown)
+window.mbQuery(0, 'titlebar:startDrag', function() {});
+
+// Flash taskbar button
+window.mbQuery(0, 'titlebar:flash', function() {});
+
+// Set always on top
+window.mbQuery(0, 'titlebar:setAlwaysOnTop:true', function() {});
+
+// Get window state
+window.mbQuery(0, 'titlebar:getState', function(customMsg, response) {
+    console.log(response);
+    // Output: {"state": "maximized", "isMaximized": true, "isMinimized": false, "isAlwaysOnTop": false, "title": "My App"}
+});
+
+// Resize window
+window.mbQuery(0, 'titlebar:resize:1024:768', function() {});
+
+// Move window
+window.mbQuery(0, 'titlebar:move:100:100', function() {});
+
+// Center window
+window.mbQuery(0, 'titlebar:center', function() {});
+```
+
+#### getState Return Value
+
+```json
+{
+    "state": "maximized",
+    "isMaximized": true,
+    "isMinimized": false,
+    "isAlwaysOnTop": false,
+    "title": "My App"
+}
+```
+
+state values: `"normal"` | `"minimized"` | `"maximized"` | `"restored"`
+
 ### MainWindow
 
 The main window class manages the application window lifecycle.
