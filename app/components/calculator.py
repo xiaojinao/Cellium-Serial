@@ -74,9 +74,7 @@ class Calculator(ICell, metaclass=AutoInjectMeta):
     
     _warmed_up = False
     
-    def __init__(self, webview=None, lib=None):
-        self._webview = webview
-        self._lib = lib
+    def __init__(self):
         register_component_handlers(self)
     
     @event("calc.requested")

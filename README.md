@@ -1,11 +1,12 @@
 [English](README.en.md)
 
-**文档网站：** [https://xiaojinao.github.io/Cellium/](https://xiaojinao.github.io/Cellium/) （推荐 | 更好的阅读体验）
+**文档网站：** [https://cellium-project.github.io/Cellium/](https://cellium-project.github.io/Cellium/) （推荐 | 更好的阅读体验）
 
 **文档导航：**
-- [Component Tutorial](component-tutorial.en.md) | [组件开发教程（中文）](component-tutorial.md)
-- [Multiprocessing Tutorial](multiprocessing-tutorial.en.md) | [多进程教程（中文）](multiprocessing-tutorial.md)
-- [Event Mode Tutorial](event-mode-tutorial.en.md) | [事件模式教程（中文）](event-mode-tutorial.md)
+- [Component Tutorial](component-tutorial.en.md) | [组件开发教程](component-tutorial.md)
+- [Multiprocessing Tutorial](multiprocessing-tutorial.en.md) | [多进程教程](multiprocessing-tutorial.md)
+- [Event Mode Tutorial](event-mode-tutorial.en.md) | [事件模式教程](event-mode-tutorial.md)
+- [Logging Tutorial](logging-tutorial.en.md) | [日志使用](logging-tutorial.md)
 
 <p align="center">
   <img src="logo.png" alt="Cellium Logo" width="400">
@@ -575,29 +576,29 @@ class FileManager(ICell):
 
 ### 标题栏处理器 TitleBarHandler
 
-标题栏处理器封装窗口控制操作，提供统一的 API 供前端调用，支持最小化、最大化、还原、关闭等窗口操作。
+标题栏处理器封装窗口控制操作，提供统一的 API 供前端调用。
 
-#### 核心方法
+#### 前端调用格式
 
-| 方法 | 说明 | 返回值 |
-|------|------|--------|
-| `minimize()` | 最小化窗口 | `"OK"` 或错误信息 |
-| `maximize()` | 最大化窗口 | `"OK"` 或错误信息 |
-| `restore()` | 还原窗口 | `"OK"` 或错误信息 |
-| `toggle_maximize()` | 切换最大化/还原状态 | `"OK"` 或错误信息 |
-| `close(force=False)` | 关闭窗口 | `"OK"` 或错误信息 |
-| `show()` | 显示窗口 | `"OK"` 或错误信息 |
-| `hide()` | 隐藏窗口 | `"OK"` 或错误信息 |
-| `set_title(title)` | 设置窗口标题 | `"OK"` 或错误信息 |
-| `get_title()` | 获取当前窗口标题 | 标题字符串 |
-| `start_drag()` | 开始拖动窗口 | `"OK"` 或错误信息 |
-| `flash(invert=False)` | 闪烁窗口任务栏按钮 | `"OK"` 或错误信息 |
-| `set_always_on_top(enable)` | 设置窗口置顶状态 | `"OK"` 或错误信息 |
-| `get_state()` | 获取窗口当前状态 | 状态字典 |
-| `resize(width, height)` | 调整窗口大小 | `"OK"` 或错误信息 |
-| `move(x, y)` | 移动窗口位置 | `"OK"` 或错误信息 |
-| `center()` | 将窗口居中显示 | `"OK"` 或错误信息 |
-| `execute(command, *args)` | 执行命令（ICell 接口兼容） | 命令执行结果 |
+所有命令使用 `titlebar:<command>[:参数]` 格式调用：
+
+| 前端命令 | 说明 | 示例 |
+|---------|------|------|
+| `titlebar:minimize` | 最小化窗口 | `titlebar:minimize` |
+| `titlebar:toggle` | 切换最大化/还原 | `titlebar:toggle` |
+| `titlebar:restore` | 还原窗口 | `titlebar:restore` |
+| `titlebar:close` | 关闭窗口 | `titlebar:close` |
+| `titlebar:show` | 显示窗口 | `titlebar:show` |
+| `titlebar:hide` | 隐藏窗口 | `titlebar:hide` |
+| `titlebar:setTitle:<标题>` | 设置窗口标题 | `titlebar:setTitle:我的应用` |
+| `titlebar:getTitle` | 获取窗口标题 | `titlebar:getTitle` |
+| `titlebar:startDrag` | 开始拖动窗口 | `titlebar:startDrag` |
+| `titlebar:flash[:true]` | 闪烁任务栏按钮 | `titlebar:flash` 或 `titlebar:flash:true` |
+| `titlebar:setAlwaysOnTop:<true\|false>` | 设置置顶状态 | `titlebar:setAlwaysOnTop:true` |
+| `titlebar:getState` | 获取窗口状态 | `titlebar:getState` |
+| `titlebar:resize:<宽>:<高>` | 调整窗口大小 | `titlebar:resize:1024:768` |
+| `titlebar:move:<x>:<y>` | 移动窗口位置 | `titlebar:move:100:100` |
+| `titlebar:center` | 窗口居中显示 | `titlebar:center` |
 
 #### 前端调用示例
 
@@ -616,6 +617,11 @@ window.mbQuery(0, 'titlebar:setTitle:我的应用', function(response) {
     console.log(response);
 });
 
+// 获取窗口标题
+window.mbQuery(0, 'titlebar:getTitle', function(response) {
+    console.log(response);
+});
+
 // 开始拖动（在前端 mousedown 时调用）
 window.mbQuery(0, 'titlebar:startDrag', function() {});
 
@@ -628,7 +634,7 @@ window.mbQuery(0, 'titlebar:setAlwaysOnTop:true', function() {});
 // 获取窗口状态
 window.mbQuery(0, 'titlebar:getState', function(customMsg, response) {
     console.log(response);
-    // 输出: {"state": "maximized", "isMaximized": true, ...}
+    // 输出: {"state": "maximized", "isMaximized": true, "isMinimized": false, "isAlwaysOnTop": false, "title": "我的应用"}
 });
 
 // 调整窗口大小
@@ -641,17 +647,19 @@ window.mbQuery(0, 'titlebar:move:100:100', function() {});
 window.mbQuery(0, 'titlebar:center', function() {});
 ```
 
-#### 窗口状态 get_state 返回值
+#### getState 返回值
 
-```python
+```json
 {
-    "state": "maximized",      # 状态: "normal", "minimized", "maximized", "restored"
-    "isMaximized": True,       # 是否最大化
-    "isMinimized": False,      # 是否最小化
-    "isAlwaysOnTop": False,    # 是否置顶
-    "title": "我的应用"         # 窗口标题
+    "state": "maximized",
+    "isMaximized": true,
+    "isMinimized": false,
+    "isAlwaysOnTop": false,
+    "title": "我的应用"
 }
 ```
+
+state 取值：`"normal"` | `"minimized"` | `"maximized"` | `"restored"`
 
 ### 依赖注入 DI
 

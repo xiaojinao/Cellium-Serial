@@ -3,20 +3,25 @@
 标题栏处理器
 封装窗口控制操作，提供统一的 API 供前端调用
 
-支持的系统命令：
-- titlebar:minimize    -> 最小化窗口
-- titlebar:maximize    -> 最大化/还原窗口
-- titlebar:close       -> 关闭窗口
-- titlebar:restore     -> 还原窗口
-- titlebar:minimize    -> 最小化窗口
-- titlebar:show        -> 显示窗口
-- titlebar:hide        -> 隐藏窗口
-- titlebar:setTitle    -> 设置窗口标题
-- titlebar:startDrag   -> 开始拖动窗口（用于自定义拖动区域）
-- titlebar:flash       -> 闪烁窗口任务栏按钮
-- titlebar:setAlwaysOnTop -> 设置窗口置顶状态
-- titlebar:getState    -> 获取窗口状态
+支持的前端命令格式：titlebar:<command>
+- titlebar:minimize   -> minimize()    最小化窗口
+- titlebar:toggle     -> toggle_maximize()  切换最大化/还原
+- titlebar:close      -> close()       关闭窗口
+- titlebar:restore    -> restore()     还原窗口
+- titlebar:show       -> show()        显示窗口
+- titlebar:hide       -> hide()        隐藏窗口
+- titlebar:setTitle   -> set_title()   设置窗口标题
+- titlebar:getTitle   -> get_title()   获取窗口标题
+- titlebar:startDrag  -> start_drag()  开始拖动窗口
+- titlebar:flash      -> flash()       闪烁窗口任务栏按钮
+- titlebar:setAlwaysOnTop -> set_always_on_top()  设置置顶状态
+- titlebar:getState   -> get_state()   获取窗口状态
+- titlebar:resize     -> resize()      调整窗口大小
+- titlebar:move       -> move()        移动窗口位置
+- titlebar:center     -> center()      窗口居中显示
 
+注意：execute() 方法的命令名采用短格式（非 titlebar: 前缀），
+例如 execute("minimize") 对应前端 titlebar:minimize
 """
 
 import ctypes

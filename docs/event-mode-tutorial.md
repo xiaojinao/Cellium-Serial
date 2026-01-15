@@ -4,10 +4,10 @@
 
 ## 教程
 
-- [Component Tutorial](component-tutorial.en.md) | [组件开发教程（中文）](component-tutorial.md)
-- [Multiprocessing Tutorial](multiprocessing-tutorial.en.md) | [多进程教程（中文）](multiprocessing-tutorial.md)
-- [Event Mode Tutorial](event-mode-tutorial.en.md) | [事件模式教程（中文）](event-mode-tutorial.md)
-- [Logging Tutorial](logging-tutorial.en.md) | [日志使用（中文）](logging-tutorial.md)
+- [Component Tutorial](component-tutorial.en.md) | [组件开发教程](component-tutorial.md)
+- [Multiprocessing Tutorial](multiprocessing-tutorial.en.md) | [多进程教程](multiprocessing-tutorial.md)
+- [Event Mode Tutorial](event-mode-tutorial.en.md) | [事件模式教程](event-mode-tutorial.md)
+- [Logging Tutorial](logging-tutorial.en.md) | [日志使用](logging-tutorial.md)
 
 > **"在 Cellium 中，事件是一种更自由的连接方式——你只需要专注于『发生了什么』，而事件的传播、路由和响应，都交给事件总线。"**
 

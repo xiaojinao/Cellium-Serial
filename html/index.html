@@ -120,6 +120,17 @@
             overflow-y: auto;
         }
 
+        .row-container {
+            display: flex;
+            gap: 20px;
+        }
+
+        .column-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
         .calculator {
             background: rgba(255, 255, 255, 0.5);
             width: 320px;
@@ -393,55 +404,59 @@
     </div>
 
     <div class="container">
-        <div class="calculator">
-            <input type="text" id="calc-display" readonly value="0">
-            <div class="calc-buttons">
-                <button class="calc-btn calc-btn-clear" id="btn-clear">C</button>
-                <button class="calc-btn calc-btn-op" id="btn-divide">÷</button>
-                <button class="calc-btn calc-btn-op" id="btn-multiply">×</button>
-                <button class="calc-btn calc-btn-backspace" id="btn-backspace">⌫</button>
+        <div class="row-container">
+            <div class="calculator">
+                <input type="text" id="calc-display" readonly value="0">
+                <div class="calc-buttons">
+                    <button class="calc-btn calc-btn-clear" id="btn-clear">C</button>
+                    <button class="calc-btn calc-btn-op" id="btn-divide">÷</button>
+                    <button class="calc-btn calc-btn-op" id="btn-multiply">×</button>
+                    <button class="calc-btn calc-btn-backspace" id="btn-backspace">⌫</button>
 
-                <button class="calc-btn calc-btn-num" id="btn-7">7</button>
-                <button class="calc-btn calc-btn-num" id="btn-8">8</button>
-                <button class="calc-btn calc-btn-num" id="btn-9">9</button>
-                <button class="calc-btn calc-btn-op" id="btn-minus">−</button>
+                    <button class="calc-btn calc-btn-num" id="btn-7">7</button>
+                    <button class="calc-btn calc-btn-num" id="btn-8">8</button>
+                    <button class="calc-btn calc-btn-num" id="btn-9">9</button>
+                    <button class="calc-btn calc-btn-op" id="btn-minus">−</button>
 
-                <button class="calc-btn calc-btn-num" id="btn-4">4</button>
-                <button class="calc-btn calc-btn-num" id="btn-5">5</button>
-                <button class="calc-btn calc-btn-num" id="btn-6">6</button>
-                <button class="calc-btn calc-btn-op" id="btn-plus">+</button>
+                    <button class="calc-btn calc-btn-num" id="btn-4">4</button>
+                    <button class="calc-btn calc-btn-num" id="btn-5">5</button>
+                    <button class="calc-btn calc-btn-num" id="btn-6">6</button>
+                    <button class="calc-btn calc-btn-op" id="btn-plus">+</button>
 
-                <button class="calc-btn calc-btn-num" id="btn-1">1</button>
-                <button class="calc-btn calc-btn-num" id="btn-2">2</button>
-                <button class="calc-btn calc-btn-num" id="btn-3">3</button>
-                <button class="calc-btn calc-btn-equals" id="btn-equals" style="grid-row: span 2;">=</button>
+                    <button class="calc-btn calc-btn-num" id="btn-1">1</button>
+                    <button class="calc-btn calc-btn-num" id="btn-2">2</button>
+                    <button class="calc-btn calc-btn-num" id="btn-3">3</button>
+                    <button class="calc-btn calc-btn-equals" id="btn-equals" style="grid-row: span 2;">=</button>
 
-                <button class="calc-btn calc-btn-num" id="btn-0" style="grid-column: span 2;">0</button>
-                <button class="calc-btn calc-btn-num" id="btn-decimal">.</button>
+                    <button class="calc-btn calc-btn-num" id="btn-0" style="grid-column: span 2;">0</button>
+                    <button class="calc-btn calc-btn-num" id="btn-decimal">.</button>
+                </div>
             </div>
-        </div>
 
-        <div class="greeter-section">
-            <h3>Greeter 组件演示</h3>
-            <input type="text" class="greeter-input" id="greeter-input" placeholder="输入你想说的话...">
-            <div class="greeter-buttons">
-                <button class="greeter-btn greeter-btn-primary" id="btn-greeter-greet">问候</button>
-                <button class="greeter-btn greeter-btn-secondary" id="btn-greeter-reverse">反转问候</button>
-            </div>
-            <div class="greeter-result-label">结果：</div>
-            <div class="greeter-result" id="greeter-result">等待输入...</div>
-        </div>
+            <div class="column-container">
+                <div class="greeter-section">
+                    <h3>Greeter 组件演示</h3>
+                    <input type="text" class="greeter-input" id="greeter-input" placeholder="输入你想说的话...">
+                    <div class="greeter-buttons">
+                        <button class="greeter-btn greeter-btn-primary" id="btn-greeter-greet">问候</button>
+                        <button class="greeter-btn greeter-btn-secondary" id="btn-greeter-reverse">反转问候</button>
+                    </div>
+                    <div class="greeter-result-label">结果：</div>
+                    <div class="greeter-result" id="greeter-result">等待输入...</div>
+                </div>
 
-        <div class="greeter-section">
-            <h3>JSON 混合模式测试</h3>
-            <div class="greeter-buttons">
-                <button class="greeter-btn greeter-btn-primary" id="btn-json-echo">字符串参数</button>
-                <button class="greeter-btn greeter-btn-secondary" id="btn-json-greet">JSON 对象</button>
-                <button class="greeter-btn greeter-btn-primary" id="btn-json-batch">JSON 数组</button>
-                <button class="greeter-btn greeter-btn-secondary" id="btn-json-complex">复杂 JSON</button>
+                <div class="greeter-section">
+                    <h3>JSON 混合模式测试</h3>
+                    <div class="greeter-buttons">
+                        <button class="greeter-btn greeter-btn-primary" id="btn-json-echo">字符串参数</button>
+                        <button class="greeter-btn greeter-btn-secondary" id="btn-json-greet">JSON 对象</button>
+                        <button class="greeter-btn greeter-btn-primary" id="btn-json-batch">JSON 数组</button>
+                        <button class="greeter-btn greeter-btn-secondary" id="btn-json-complex">复杂 JSON</button>
+                    </div>
+                    <div class="greeter-result-label">结果：</div>
+                    <div class="greeter-result" id="json-result">点击按钮测试...</div>
+                </div>
             </div>
-            <div class="greeter-result-label">结果：</div>
-            <div class="greeter-result" id="json-result">点击按钮测试...</div>
         </div>
 
         <div id="event-log">

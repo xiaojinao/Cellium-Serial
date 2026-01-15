@@ -4,12 +4,17 @@ Miniblink 浏览器 - 主窗口
 """
 
 import ctypes
+import http.server
 import logging
+import mimetypes
 import os
 import pathlib
+import random
+import socket
+import socketserver
 import sys
-import time
 import threading
+import time
 from ctypes import wintypes, byref
 
 logger = logging.getLogger(__name__)
@@ -74,6 +79,178 @@ def _get_project_root():
         return pathlib.Path(sys.argv[0] if sys.argv[0] else __file__).resolve().parent
 
 
+class StaticServer:
+    """静态文件服务器 - 支持 SPA 路由回退"""
+
+    _instance = None
+    _server = None
+    _thread = None
+    _port = None
+
+    DEFAULT_PORTS = [8080, 8081, 8082, 8083, 8084, 8085, 8086, 8087, 8088, 8089]
+    PORT_RANGE = range(8000, 9000)
+
+    def __new__(cls, directory):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        cls._instance.directory = directory
+        return cls._instance
+
+    @classmethod
+    def get_instance(cls, directory=None):
+        """获取单例实例"""
+        if cls._instance is None and directory:
+            cls._instance = cls(directory)
+        return cls._instance
+
+    @classmethod
+    def get_url(cls):
+        """获取服务器 URL"""
+        if cls._port:
+            return f"http://localhost:{cls._port}/index.html"
+        return None
+
+    @classmethod
+    def is_port_available(cls, port: int) -> bool:
+        """检查端口是否可用"""
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind(('', port))
+                return True
+        except OSError:
+            return False
+
+    @classmethod
+    def find_available_port(cls, preferred_ports=None, max_attempts=10) -> int:
+        """查找可用端口
+
+        Args:
+            preferred_ports: 优先尝试的端口列表
+            max_attempts: 最大尝试次数
+
+        Returns:
+            可用的端口号
+        """
+        if preferred_ports is None:
+            preferred_ports = cls.DEFAULT_PORTS
+
+        tried_ports = set()
+
+        for port in preferred_ports:
+            if port not in tried_ports and cls.is_port_available(port):
+                tried_ports.add(port)
+                return port
+
+        for _ in range(max_attempts):
+            port = random.randint(8000, 8999)
+            if port not in tried_ports and cls.is_port_available(port):
+                tried_ports.add(port)
+                return port
+
+        raise OSError(f"无法找到可用端口，已尝试: {tried_ports}")
+
+    def start(self, port=0, max_retries=3):
+        """启动服务器
+
+        Args:
+            port: 端口号，0 表示由系统自动分配，-1 表示使用首选端口列表
+            max_retries: 最大重试次数
+
+        Returns:
+            实际使用的端口号
+        """
+        mimetypes.init()
+        mimetypes.add_type('application/javascript', '.js')
+        mimetypes.add_type('text/css', '.css')
+        mimetypes.add_type('application/json', '.json')
+        mimetypes.add_type('image/svg+xml', '.svg')
+        mimetypes.add_type('application/wasm', '.wasm')
+
+        os.chdir(self.directory)
+
+        actual_port = port
+        retry_count = 0
+
+        while retry_count < max_retries:
+            try:
+                if port == 0:
+                    actual_port = self.find_available_port()
+                elif port == -1:
+                    actual_port = self.find_available_port(self.DEFAULT_PORTS)
+                elif not self.is_port_available(port):
+                    logger.warning(f"端口 {port} 已被占用，尝试查找其他端口")
+                    actual_port = self.find_available_port()
+                    port = actual_port
+
+                self._server = socketserver.ThreadingTCPServer(
+                    ("", actual_port), self._create_handler()
+                )
+                self._port = actual_port
+                logger.info(f"静态服务器启动: http://localhost:{actual_port}")
+                break
+            except OSError as e:
+                retry_count += 1
+                if port != 0:
+                    logger.warning(f"端口 {port} 占用 ({retry_count}/{max_retries}): {e}")
+                    actual_port = self.find_available_port()
+                    port = actual_port
+                else:
+                    raise e
+        else:
+            raise OSError(f"无法启动服务器，已重试 {max_retries} 次")
+
+        self._thread = threading.Thread(
+            target=self._server.serve_forever, daemon=True
+        )
+        self._thread.start()
+
+        return actual_port
+    
+    def _create_handler(self):
+        """创建请求处理器"""
+        directory = self.directory
+        
+        class SPAHandler(http.server.SimpleHTTPRequestHandler):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, directory=directory, **kwargs)
+            
+            def do_GET(self):
+                """处理 GET 请求，支持 SPA 路由回退"""
+                # 获取请求的文件路径
+                path = self.path
+                if path == '/':
+                    path = '/index.html'
+                
+                # 移除查询参数
+                if '?' in path:
+                    path = path.split('?')[0]
+                
+                # 转换路径
+                file_path = self.translate_path(path)
+                
+                # 如果文件不存在，返回 index.html（SPA 路由回退）
+                if not os.path.exists(file_path):
+                    logger.debug(f"文件不存在，回退到 index.html: {path}")
+                    self.path = '/index.html'
+                
+                return super().do_GET()
+            
+            def log_message(self, format, *args):
+                """自定义日志格式"""
+                logger.debug(f"[HTTP] {args[0]}")
+        
+        return SPAHandler
+    
+    def stop(self):
+        """停止服务器"""
+        if self._server:
+            self._server.shutdown()
+            self._server.server_close()
+            logger.info("静态服务器已停止")
+            self._server = None
+            self._port = None
+
+
 class MainWindow:
 
     def __init__(self):
@@ -110,6 +287,10 @@ class MainWindow:
         
         self.calculator = None
         self.message_handler = None
+        
+        # 静态文件服务器
+        self._static_server = None
+        self._html_url = None
     
     def _get_component(self, component_type):
         """从 DI 容器获取组件
@@ -149,6 +330,52 @@ class MainWindow:
         except Exception as e:
             logger.error(f"设置窗口图标失败: {e}")
     
+    def start_static_server(self, port=0):
+        """启动静态文件服务器
+        
+        Args:
+            port: 端口号，0 表示由系统自动分配
+            
+        Returns:
+            实际使用的端口号
+        """
+        self._static_server = StaticServer.get_instance(self.html_dir)
+        actual_port = self._static_server.start(port=port)
+        self._html_url = f"http://localhost:{actual_port}/index.html"
+        logger.info(f"静态服务器 URL: {self._html_url}")
+        return actual_port
+    
+    def load_html_from_server(self):
+        """从本地静态服务器加载 HTML"""
+        if not self._html_url:
+            logger.error("静态服务器未启动")
+            return False
+        
+        try:
+            # 获取完整的 URL（去掉 /index.html 后缀）
+            base_url = self._html_url.replace('/index.html', '/')
+            
+            # 读取 HTML 文件
+            html_path = os.path.join(self.html_dir, 'index.html')
+            with open(html_path, 'r', encoding='utf-8') as f:
+                html_content = f.read()
+            
+            logger.info(f"已读取 HTML 文件: {html_path}")
+            
+            # 使用 mbLoadHtmlWithBaseUrl 加载 HTML 内容
+            self.lib.mbLoadHtmlWithBaseUrl(
+                self.webview, 
+                html_content.encode('utf-8'), 
+                base_url.encode('utf-8')
+            )
+            logger.info(f"已加载 HTML (base URL: {base_url})")
+            return True
+        except Exception as e:
+            logger.error(f"加载 HTML 失败: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+    
     def _window_procedure(self, hwnd, msg, wparam, lparam):
         """窗口过程 - 处理关闭消息"""
         if msg == WM_CLOSE:
@@ -156,6 +383,9 @@ class MainWindow:
             self.fade_out(duration=300)
             self.running = False
             self.stop_polling()
+            # 停止静态服务器
+            if self._static_server:
+                self._static_server.stop()
             try:
                 self.lib.mbDestroyWebWindow(self.webview)
             except:
@@ -304,6 +534,9 @@ class MainWindow:
         self.fade_out(duration=300)
         self.running = False
         self.stop_polling()
+        # 停止静态服务器
+        if self._static_server:
+            self._static_server.stop()
         try:
             self.lib.mbDestroyWebWindow(self.webview)
         except:
@@ -474,20 +707,8 @@ class MainWindow:
         # 初始化桥接模块
         self.bridge = MiniBlinkBridge(self)
         
-        # 初始化计算器组件（从 DI 容器获取已配置的组件）
-        from app.components import Calculator
-        self.calculator = self._get_component(Calculator)
-        if self.calculator:
-            self.calculator.webview = self.webview
-            self.calculator.lib = self.lib
-            self.calculator.bridge = self.bridge
-            logger.info(f"[INFO] 已从 DI 容器获取 Calculator 组件")
-        else:
-            logger.warning(f"[WARNING] Calculator 未在配置中注册，将创建新实例")
-            self.calculator = Calculator(self.webview, self.lib)
-        
         # 初始化消息处理器组件
-        self.message_handler = MessageHandler(self.hwnd, self.calculator)
+        self.message_handler = MessageHandler(self.hwnd, None)
         
         # 订阅事件
         event_bus.subscribe(EventType.FADE_OUT, self._on_fade_out)
@@ -495,7 +716,10 @@ class MainWindow:
         # 设置所有回调
         self.bridge.setup_all_callbacks()
         
-        self.load_html_with_buttons()
+        # 启动静态文件服务器并加载 HTML
+        self.start_static_server()
+        self.load_html_from_server()
+        
         self.remove_titlebar()
         
         try:
@@ -503,9 +727,7 @@ class MainWindow:
             self.lib.mbMoveToCenter(self.webview)
         except Exception as e:
             logger.error(f"显示窗口失败: {e}")
-        
-        logger.info("浏览器就绪! 点击按钮查看 Python 捕获的事件")
-        
+           
         self.start_polling()
         self.run_message_loop()
         self.stop_polling()

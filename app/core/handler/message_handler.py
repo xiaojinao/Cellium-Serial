@@ -33,9 +33,6 @@ class MessageHandler:
         self._button_callbacks = {}
         self._titlebar_handler = TitleBarHandler(hwnd)
         
-        if self.calculator and isinstance(self.calculator, ICell):
-            register_cell_to_global(self.calculator)
-        
         event_bus.subscribe(EventType.ALERT, self._on_alert_message)
         event_bus.subscribe(EventType.JSQUERY, self._on_jsquery_message)
     
@@ -152,18 +149,10 @@ class MessageHandler:
     def _handle_titlebar_command(self, cmd: str, args: str) -> str:
         """处理标题栏命令"""
         try:
-            if cmd == "minimize":
-                self._titlebar_handler.minimize()
-                return "OK"
-            elif cmd == "toggle":
-                self._titlebar_handler.toggle_maximize()
-                return "OK"
-            elif cmd == "close":
-                self._titlebar_handler.close()
-                return "OK"
-            else:
-                logger.warning(f"未知的标题栏命令: {cmd}")
-                return f"Error: Unknown titlebar command: {cmd}"
+            result = self._titlebar_handler.execute(cmd, args)
+            if result and isinstance(result, str) and result.startswith("Error"):
+                logger.warning(f"标题栏命令执行失败: {cmd}, {result}")
+            return result if result else "OK"
         except Exception as e:
             logger.error(f"执行标题栏命令失败: {cmd}, 错误: {e}")
             return f"Error: {str(e)}"

@@ -1,11 +1,12 @@
 [中文](README.md)
 
-**Documentation Website:** [https://xiaojinao.github.io/Cellium/](https://xiaojinao.github.io/Cellium/) (Recommended | Better Reading Experience)
+**Documentation Website:** [https://cellium-project.github.io/Cellium/](https://cellium-project.github.io/Cellium/) (Recommended | Better Reading Experience)
 
 **Documentation Navigation:**
-- [Component Tutorial](component-tutorial.en.md) | [组件开发教程（中文）](component-tutorial.md)
-- [Multiprocessing Tutorial](multiprocessing-tutorial.en.md) | [多进程教程（中文）](multiprocessing-tutorial.md)
-- [Event Mode Tutorial](event-mode-tutorial.en.md) | [事件模式教程（中文）](event-mode-tutorial.md)
+- [Component Tutorial](component-tutorial.en.md) | [组件开发教程](component-tutorial.md)
+- [Multiprocessing Tutorial](multiprocessing-tutorial.en.md) | [多进程教程](multiprocessing-tutorial.md)
+- [Event Mode Tutorial](event-mode-tutorial.en.md) | [事件模式教程](event-mode-tutorial.md)
+- [Logging Tutorial](logging-tutorial.en.md) | [日志使用](logging-tutorial.md)
 
 <p align="center">
   <img src="logo.png" alt="Cellium Logo" width="400">
