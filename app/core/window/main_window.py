@@ -623,7 +623,7 @@ class MainWindow:
         # 启动静态文件服务器并加载 HTML
         self.start_static_server()
         self.load_html_from_server()
-
+        #系统原生标题栏，注释后启用
         self.remove_titlebar()
 
         user32.ShowWindow(self.hwnd, 1)

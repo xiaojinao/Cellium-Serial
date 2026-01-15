@@ -2,8 +2,8 @@
 
 <div align="center">
 
-![Python Version](https://img.shields.io/pypi/pyversions/cellium?logo=python&style=flat-square)
-![License](https://img.shields.io/pypi/l/cellium?logo=apache&style=flat-square)
+![Python](https://img.shields.io/badge/python-3.10%20|%203.11%20|%203.12%20|%203.13-blue?logo=python&style=flat-square)
+![License](https://img.shields.io/badge/license-MIT-blue?logo=mit&style=flat-square)
 ![Platform](https://img.shields.io/badge/platform-Windows-blue?logo=windows&style=flat-square)
 ![MiniBlink](https://img.shields.io/badge/MiniBlink-v132-yellow?logo=webkit&style=flat-square)
 
@@ -136,21 +136,21 @@ Cellium 的设计遵循"核心驱动-模块解耦"的核心哲学，将复杂系
 
 ```mermaid
 flowchart TB
-    subgraph Frontend["Frontend - MiniBlink"]
+    subgraph Frontend["前端层"]
         H["HTML/CSS"]
         J["JavaScript"]
-        MB["window.mbQuery()"]
+        MB["window.mbQuery() 调用"]
     end
 
-    Core["Cellium Core"]
+    Core["Cellium 微内核"]
 
-    subgraph Backend["Backend - Components"]
-        C["Calculator"]
-        F["FileManager"]
-        Custom["Custom"]
+    subgraph Backend["后端层"]
+        Calc["Calculator"]
+        Grt["Greeter"]
+        Json["JsonTest"]
     end
 
-    Frontend -->|"mbQuery()"| Core
+    Frontend -->|"window.mbQuery()"| Core
     Core --> Backend
 ```
 
@@ -158,30 +158,30 @@ flowchart TB
 
 ```mermaid
 flowchart TB
-    subgraph Presentation["Presentation Layer"]
+    subgraph Presentation["前端交互层"]
         MW["MainWindow"]
-        MW -->|"Window Mgmt"| MW
-        MW -->|"Event Subscribe"| MW
-        MW -->|"UI Render"| MW
+        MW -->|"窗口管理"| MW
+        MW -->|"事件订阅"| MW
+        MW -->|"UI 渲染"| MW
     end
 
-    subgraph Kernel["Kernel Layer"]
+    subgraph Kernel["微内核层"]
         EB["EventBus"]
         BR["Bridge"]
         HD["Handler"]
         DI["DIContainer"]
     end
 
-    subgraph Component["Component Layer"]
+    subgraph Component["组件层"]
         Calc["Calculator"]
-        FM["FileManager"]
-        Custom["Custom"]
+        Grt["Greeter"]
+        Json["JsonTest"]
     end
 
-    Presentation -->|"Frontend Interaction"| Kernel
-    Kernel -->|"Event Communication"| Component
-    HD <-->|"Message Handling"| DI
-    BR <-->|"Bridge Communication"| EB
+    Presentation -->|"前端交互"| Kernel
+    Kernel -->|"事件通信"| Component
+    HD <-->|"消息处理"| DI
+    BR <-->|"桥接通信"| EB
 ```
 
 ### 设计原则
@@ -196,20 +196,20 @@ flowchart TB
 
 ```mermaid
 flowchart TD
-    A["User Action"] --> B["JavaScript HTML/CSS"]
-    B -->|mbQuery()| C["MiniBlinkBridge"]
-    C --> D["MessageHandler"]
+    A["用户操作"] --> B["JavaScript HTML/CSS"]
+    B -->|"window.mbQuery()"| C["MiniBlinkBridge 接收回调"]
+    C --> D["MessageHandler 命令解析与路由"]
 
-    D --> E{Processing}
-    E -->|"Event Mode"| F["EventBus"]
-    E -->|"Direct Call"| G["Direct Method"]
+    D --> E{处理方式}
+    E -->|"事件模式"| F["EventBus 事件"]
+    E -->|"直接调用"| G["直接方法调用"]
 
-    F --> H["Component"]
-    G --> I["Result"]
-    H --> J["Result"]
+    F --> H["组件处理"]
+    G --> I["返回结果"]
+    H --> J["返回结果"]
 
-    J -->|"→"| K["JS Update UI"]
-    I -->|"→"| K
+    J -->|"->"| K["JavaScript 更新 UI"]
+    I -->|"->"| K
 ```
 
 ## 目录结构
@@ -282,23 +282,23 @@ python-miniblink/
 
 ```mermaid
 flowchart TB
-    subgraph Kernel["Cellium Kernel"]
+    subgraph Kernel["Cellium 微内核"]
         EB["EventBus"]
         MH["MessageHandler"]
         DI["DIContainer"]
-        MP["Multiprocess"]
+        MP["MultiprocessManager"]
         WM["WindowManager"]
-        Components["Components"]
+        Components["组件单元"]
     end
 
-    MH -.->|"Coordination"| EB
-    EB -.->|"Event Comm"| MH
+    MH -.->|"调度协调"| EB
+    EB -.->|"事件通信"| MH
 
-    DI -->|"Dependency Inject"| MH
-    MP -->|"Process Mgmt"| MH
-    WM -->|"Window Mgmt"| MH
+    DI -->|"依赖注入"| MH
+    MP -->|"进程管理"| MH
+    WM -->|"窗口管理"| MH
 
-    MH & DI & MP & WM -->|"Component Coordination"| Components
+    MH & DI & MP & WM -->|"组件协调"| Components
 ```
 
 ### 事件总线 EventBus

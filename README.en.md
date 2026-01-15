@@ -12,6 +12,20 @@
   <img src="logo.png" alt="Cellium Logo" width="400">
 </p>
 
+<div align="center">
+
+![Python](https://img.shields.io/badge/python-3.10%20|%203.11%20|%203.12%20|%203.13-blue?logo=python&style=flat-square)
+![License](https://img.shields.io/badge/license-MIT-blue?logo=mit&style=flat-square)
+![Platform](https://img.shields.io/badge/platform-Windows-blue?logo=windows&style=flat-square)
+![MiniBlink](https://img.shields.io/badge/MiniBlink-v132-yellow?logo=webkit&style=flat-square)
+
+![GitHub Stars](https://img.shields.io/github/stars/Cellium-Project/Cellium?logo=github&style=flat-square)
+![GitHub Forks](https://img.shields.io/github/forks/Cellium-Project/Cellium?logo=github&style=flat-square)
+![GitHub Issues](https://img.shields.io/github/issues/Cellium-Project/Cellium?logo=github&style=flat-square)
+![GitHub Last Commit](https://img.shields.io/github/last-commit/Cellium-Project/Cellium?logo=github&style=flat-square)
+
+</div>
+
 # Cellium
 
 **Python + HTML/JS Desktop Application Framework.**
@@ -129,12 +143,12 @@ flowchart TB
     Core["Cellium Micro-Kernel"]
     
     subgraph Backend["Backend Layer"]
-        C["Calculator"]
-        F["FileManager"]
-        Custom["Custom Component"]
+        Calc["Calculator"]
+        Grt["Greeter"]
+        Json["JsonTest"]
     end
 
-    Frontend -->|window.mbQuery(0, 'cell:command:args')| Core
+    Frontend -->|"mbQuery()"| Core
     Core --> Backend
 ```
 
@@ -158,8 +172,8 @@ flowchart TB
 
     subgraph Component["Component Layer"]
         Calc["Calculator"]
-        FM["FileManager"]
-        Custom["Custom Component (ICell)"]
+        Grt["Greeter"]
+        Json["JsonTest"]
     end
 
     Presentation -->|"Frontend Interaction"| Kernel
@@ -181,7 +195,7 @@ flowchart TB
 ```mermaid
 flowchart TD
     A["User Action"] --> B["JavaScript HTML/CSS"]
-    B -->|window.mbQuery(0, 'calculator:calc:1+1')| C["MiniBlinkBridge Receives Callback"]
+    B -->|mbQuery()| C["MiniBlinkBridge"]
     C --> D["MessageHandler Command Parsing and Routing"]
     
     D --> E{Processing Mode}
@@ -192,8 +206,8 @@ flowchart TD
     G --> I["Return Result"]
     H --> J["Return Result"]
     
-    J -->|"→"| K["JavaScript Update UI"]
-    I -->|"→"| K
+    J -->|"->"| K["JavaScript Update UI"]
+    I -->|"->"| K
 ```
 
 ## Directory Structure
@@ -270,7 +284,7 @@ flowchart TB
         EB["EventBus"]
         MH["MessageHandler"]
         DI["DIContainer"]
-        MP["Multiprocess"]
+        MP["MultiprocessManager"]
         WM["WindowManager"]
         Components["Component Units"]
     end
