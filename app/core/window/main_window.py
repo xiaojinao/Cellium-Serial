@@ -489,11 +489,9 @@ class MainWindow:
                     logger.info("AppUserModelID 已设置")
                 except Exception as e:
                     logger.warning(f"设置 AppUserModelID 失败: {e}")
-                
-                user32.ShowWindow(self.hwnd, 1)
-                user32.SetForegroundWindow(self.hwnd)
-            
-            logger.info(f"窗口已创建: {self.hwnd}")
+
+                user32.ShowWindow(self.hwnd, 0)
+                logger.info("窗口已创建（初始隐藏）")
             return True
         except Exception as e:
             logger.error(f"创建窗口失败: {e}")
@@ -719,8 +717,11 @@ class MainWindow:
         # 启动静态文件服务器并加载 HTML
         self.start_static_server()
         self.load_html_from_server()
-        
+
         self.remove_titlebar()
+
+        user32.ShowWindow(self.hwnd, 1)
+        user32.SetForegroundWindow(self.hwnd)
         
         try:
             self.lib.mbShowWindow(self.webview, True)
