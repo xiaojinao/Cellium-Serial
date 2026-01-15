@@ -11,7 +11,7 @@
 
 from .window.main_window import MainWindow
 from .bridge.miniblink_bridge import MiniBlinkBridge
-from .handler.message_handler import MessageHandler, MiniblinkButtonEvent
+from .handler.message_handler import MessageHandler
 from .bus.event_bus import event_bus, EventBus
 from .bus.events import EventType
 from .bus.event_models import BaseEvent

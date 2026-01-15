@@ -32,7 +32,7 @@ from ..bridge.miniblink_bridge import MiniBlinkBridge
 from ..bus.event_bus import event_bus
 from ..bus.events import EventType
 from ..bus.event_models import FadeOutEvent
-from ..handler.message_handler import MessageHandler, MiniblinkButtonEvent
+from ..handler.message_handler import MessageHandler
 from ..di.container import get_container
 
 WM_COMMAND = 0x0111
@@ -274,11 +274,6 @@ class MainWindow:
         self.running = True
         self.title = "Python MiniBlink"
         
-        self._polling_active = False
-        self._polling_thread = None
-        self._last_clicked_id = None
-        self._last_check_time = 0
-        
         self._wnd_proc = None
         self._wnd_class = None
         
@@ -382,7 +377,6 @@ class MainWindow:
             logger.info("收到 WM_CLOSE，停止应用程序...")
             self.fade_out(duration=300)
             self.running = False
-            self.stop_polling()
             # 停止静态服务器
             if self._static_server:
                 self._static_server.stop()
@@ -531,7 +525,6 @@ class MainWindow:
         logger.info("[INFO] 收到淡出事件")
         self.fade_out(duration=300)
         self.running = False
-        self.stop_polling()
         # 停止静态服务器
         if self._static_server:
             self._static_server.stop()
@@ -540,93 +533,6 @@ class MainWindow:
         except:
             pass
         user32.PostQuitMessage(0)
-    
-    def register_button_callback(self, button_id, callback):
-        """注册按钮点击回调
-        
-        Args:
-            button_id: 按钮 ID（字符串，如 'btn-red'）
-            callback: 回调函数，接收 MiniblinkButtonEvent 对象
-        """
-        if self.message_handler:
-            self.message_handler.register_button_callback(button_id, callback)
-        else:
-            logger.error("MessageHandler 未初始化，无法注册按钮回调")
-    
-    def _check_clicked_element(self):
-        """轮询检查点击的元素 - 使用 JavaScript"""
-        try:
-            script = b"""
-                (function() {
-                    if (window.lastClickedElement) {
-                        var result = window.lastClickedElement;
-                        window.lastClickedElement = null;
-                        return result;
-                    }
-                    return null;
-                })()
-            """
-            
-            mbRunJS = self.lib.mbRunJS
-            mbRunJS.argtypes = [
-                ctypes.c_void_p, ctypes.c_void_p, ctypes.c_char_p,
-                ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p
-            ]
-            
-            result = []
-            def callback(webview, param, es, code, str_result, str_len):
-                try:
-                    if str_result:
-                        result.append(ctypes.cast(str_result, ctypes.c_char_p).value.decode('utf-8'))
-                except:
-                    pass
-            
-            MB_RUNJS_CALLBACK = ctypes.WINFUNCTYPE(
-                None, ctypes.c_void_p, ctypes.c_void_p, 
-                ctypes.c_void_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_int
-            )
-            
-            cb = MB_RUNJS_CALLBACK(callback)
-            mbRunJS(self.webview, None, script, True, cb, None, None)
-            
-            if result and result[0] and result[0] != "null":
-                element_id = result[0]
-                if element_id != self._last_clicked_id:
-                    self._last_clicked_id = element_id
-                    event = MiniblinkButtonEvent(
-                        button_id=element_id,
-                        hwnd=self.hwnd,
-                        event_type="click"
-                    )
-                    if self.message_handler:
-                        self.message_handler._on_button_clicked(event)
-                    
-        except Exception as e:
-            pass
-    
-    def _polling_worker(self):
-        """轮询工作线程"""
-        while self._polling_active and self.running:
-            try:
-                self._check_clicked_element()
-            except:
-                pass
-            time.sleep(0.1)
-    
-    def start_polling(self):
-        """开始轮询点击事件"""
-        self._polling_active = True
-        self._polling_thread = threading.Thread(target=self._polling_worker)
-        self._polling_thread.daemon = True
-        self._polling_thread.start()
-        logger.info("开始点击轮询")
-    
-    def stop_polling(self):
-        """停止轮询"""
-        self._polling_active = False
-        if self._polling_thread:
-            self._polling_thread.join(timeout=1)
-        logger.info("停止点击轮询")
     
     def load_html_with_buttons(self):
         """加载包含计算器和标题栏的 HTML 页面 - Google 风格"""
@@ -729,6 +635,4 @@ class MainWindow:
         except Exception as e:
             logger.error(f"显示窗口失败: {e}")
            
-        self.start_polling()
         self.run_message_loop()
-        self.stop_polling()

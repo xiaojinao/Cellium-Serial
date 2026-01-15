@@ -30,7 +30,6 @@ class MessageHandler:
     def __init__(self, hwnd, calculator=None):
         self.hwnd = hwnd
         self.calculator = calculator
-        self._button_callbacks = {}
         self._titlebar_handler = TitleBarHandler(hwnd)
         
         event_bus.subscribe(EventType.ALERT, self._on_alert_message)
@@ -200,49 +199,9 @@ class MessageHandler:
             if self.calculator:
                 result = self.calculator.calculate(expression)
                 self.calculator.show_result(result)
-        
-        elif command.startswith("click:"):
-            button_id = command[6:]
-            event = MiniblinkButtonEvent(
-                button_id=button_id,
-                hwnd=self.hwnd,
-                event_type="click"
-            )
-            self._on_button_clicked(event)
     
     def _handle_calc_result(self, result):
         """处理计算结果"""
         if self.calculator:
             self.calculator.handle_calc_result(result)
-    
-    def _on_button_clicked(self, event):
-        """按钮点击事件处理"""
-        logger.info(f"[INFO] 按钮点击: {event}")
-        
-        if event.button_id in self._button_callbacks:
-            callback = self._button_callbacks[event.button_id]
-            try:
-                callback(event)
-            except Exception as e:
-                logger.error(f"[ERROR] 按钮回调失败: {e}")
-    
-    def register_button_callback(self, button_id, callback):
-        """注册按钮点击回调
-        
-        Args:
-            button_id: 按钮 ID（字符串，如 'btn-red'）
-            callback: 回调函数，接收 MiniblinkButtonEvent 对象
-        """
-        self._button_callbacks[button_id] = callback
-        logger.info(f"[INFO] 已注册按钮回调: {button_id}")
 
-
-class MiniblinkButtonEvent:
-    def __init__(self, button_id, hwnd, event_type, data=None):
-        self.button_id = button_id
-        self.hwnd = hwnd
-        self.event_type = event_type
-        self.data = data
-    
-    def __repr__(self):
-        return f"<ButtonEvent type={self.event_type} id={self.button_id}>"

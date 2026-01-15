@@ -603,7 +603,6 @@ result = handler.handle_message("calculator:calc:1+1")
 |--------|-------------|
 | `register_cell(cell)` | Register ICell component |
 | `get_cell(name)` | Get component by name |
-| `register_button_callback(button_id, callback)` | Register button callback |
 
 ### MiniBlinkBridge
 
@@ -650,10 +649,7 @@ window.run()
 | `create_window()` | Create window |
 | `init_engine()` | Initialize browser engine |
 | `load_dll()` | Load MiniBlink DLL |
-| `start_polling()` | Start polling |
-| `stop_polling()` | Stop polling |
 | `fade_out(duration)` | Window fade out effect |
-| `register_button_callback(button_id, callback)` | Register button callback |
 | `remove_titlebar()` | Remove title bar |
 
 ### TitleBarHandler

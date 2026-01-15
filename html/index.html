@@ -465,7 +465,6 @@
     </div>
 
     <script>
-        window.lastClickedElement = null;
         let calcExpression = '';
 
         function logEvent(message) {
@@ -516,42 +515,36 @@
         }
 
         function setupCalculatorButtons() {
-            document.querySelectorAll('.calc-btn-num').forEach(btn => {
+            document.querySelectorAll('.calc-btn-num:not(#btn-decimal)').forEach(btn => {
                 btn.addEventListener('click', function(e) {
                     const value = this.textContent;
                     appendToCalc(value);
-                    window.lastClickedElement = this.id;
                 });
             });
 
             document.getElementById('btn-clear').addEventListener('click', function(e) {
                 clearCalc();
-                window.lastClickedElement = this.id;
             });
 
             document.getElementById('btn-backspace').addEventListener('click', function(e) {
                 backspaceCalc();
-                window.lastClickedElement = this.id;
             });
 
             ['btn-plus', 'btn-minus', 'btn-multiply', 'btn-divide'].forEach(id => {
                 document.getElementById(id).addEventListener('click', function(e) {
                     const opMap = {'btn-plus': '+', 'btn-minus': '-', 'btn-multiply': '*', 'btn-divide': '/'};
                     appendToCalc(opMap[this.id]);
-                    window.lastClickedElement = this.id;
                 });
             });
 
             document.getElementById('btn-equals').addEventListener('click', function(e) {
                 calculateWithPython();
-                window.lastClickedElement = this.id;
             });
 
             document.getElementById('btn-decimal').addEventListener('click', function(e) {
                 e.stopPropagation();  // 阻止事件冒泡
                 e.preventDefault();   // 阻止默认行为
                 appendToCalc('.');
-                window.lastClickedElement = this.id;
             });
         }
 

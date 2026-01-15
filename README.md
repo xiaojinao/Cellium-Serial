@@ -860,7 +860,6 @@ result = handler.handle_message("calculator:calc:1+1")
 |------|------|
 | `register_cell(cell)` | 注册 ICell 组件 |
 | `get_cell(name)` | 根据名称获取组件 |
-| `register_button_callback(button_id, callback)` | 注册按钮回调 |
 
 ### 桥接层 MiniBlinkBridge
 
@@ -907,10 +906,7 @@ window.run()
 | `create_window()` | 创建窗口 |
 | `init_engine()` | 初始化浏览器引擎 |
 | `load_dll()` | 加载 MiniBlink DLL |
-| `start_polling()` | 启动轮询 |
-| `stop_polling()` | 停止轮询 |
 | `fade_out(duration)` | 窗口淡出效果 |
-| `register_button_callback(button_id, callback)` | 注册按钮回调 |
 | `remove_titlebar()` | 移除标题栏 |
 
 ### 组件加载器 ComponentsLoader
