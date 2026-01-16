@@ -347,24 +347,24 @@ class MainWindow:
             return False
         
         try:
-            # 获取完整的 URL（去掉 /index.html 后缀）
-            base_url = self._html_url.replace('/index.html', '/')
-            
-            # 读取 HTML 文件
-            html_path = os.path.join(self.html_dir, 'index.html')
-            with open(html_path, 'r', encoding='utf-8') as f:
-                html_content = f.read()
-            
-            logger.info(f"已读取 HTML 文件: {html_path}")
-            
-            # 使用 mbLoadHtmlWithBaseUrl 加载 HTML 内容
-            self.lib.mbLoadHtmlWithBaseUrl(
-                self.webview, 
-                html_content.encode('utf-8'), 
-                base_url.encode('utf-8')
-            )
-            logger.info(f"已加载 HTML (base URL: {base_url})")
-            return True
+            # 使用 wkeLoadURL 加载本地服务器 URL
+            if hasattr(self.lib, 'wkeLoadURL'):
+                self.lib.wkeLoadURL(self.webview, self._html_url.encode('utf-8'))
+                logger.info(f"已加载 URL: {self._html_url}")
+                return True
+            else:
+                # 回退到 mbLoadHtmlWithBaseUrl
+                html_path = os.path.join(self.html_dir, 'index.html')
+                with open(html_path, 'r', encoding='utf-8') as f:
+                    html_content = f.read()
+                base_url = self._html_url.replace('/index.html', '/')
+                self.lib.mbLoadHtmlWithBaseUrl(
+                    self.webview, 
+                    html_content.encode('utf-8'), 
+                    base_url.encode('utf-8')
+                )
+                logger.info(f"已加载 HTML (fallback): {base_url}")
+                return True
         except Exception as e:
             logger.error(f"加载 HTML 失败: {e}")
             import traceback
@@ -483,6 +483,12 @@ class MainWindow:
                     logger.info("AppUserModelID 已设置")
                 except Exception as e:
                     logger.warning(f"设置 AppUserModelID 失败: {e}")
+
+                if hasattr(self.lib, 'wkeSetMemoryCacheEnable'):
+                    self.lib.wkeSetMemoryCacheEnable(self.webview, True)
+                    logger.info("内存缓存已启用")
+                else:
+                    logger.debug("wkeSetMemoryCacheEnable 不可用，跳过")
 
                 user32.ShowWindow(self.hwnd, 0)
                 logger.info("窗口已创建（初始隐藏）")
@@ -628,6 +634,7 @@ class MainWindow:
 
         user32.ShowWindow(self.hwnd, 1)
         user32.SetForegroundWindow(self.hwnd)
+        
         
         try:
             self.lib.mbShowWindow(self.webview, True)
