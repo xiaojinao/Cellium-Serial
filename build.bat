@@ -1,13 +1,13 @@
 @echo off
-cd c:\Users\Administrator\Desktop\app\python-miniblink
-if not exist "dist" mkdir "dist"
+cd /d "%~dp0"
+if not exist "dist" mkdir dist
 
 python -m nuitka --standalone --onefile ^
 --windows-console-mode=attach ^
 --windows-icon-from-ico=app_icon.ico ^
 --output-dir="dist" ^
---company="Python MiniBlink" ^
---product-name="Python MiniBlink Browser" ^
+--company="Cellium" ^
+--product-name="Cellium Serial" ^
 --file-version=1.0.0.0 ^
 --product-version=1.0.0.0 ^
 --include-package=app ^

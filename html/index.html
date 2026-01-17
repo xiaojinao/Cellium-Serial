@@ -760,19 +760,31 @@
 
         <div class="data-panel">
             <div class="data-area">
-                <div class="data-area-label">接收区 <span id="recv-count" style="color:#9aa0a6;margin-left:8px;"></span></div>
+                <div class="data-area-label">接收区 
+                    <span id="recv-count" style="color:#9aa0a6;margin-left:8px;"></span>
+                </div>
                 <textarea class="data-textarea" id="serial-receive" readonly placeholder="接收到的数据将显示在这里..."></textarea>
             </div>
             <div class="send-area">
                 <div class="data-area-label">发送区 <span id="send-mode-badge" style="display:none;background:#5f6368;color:white;font-size:11px;padding:2px 8px;border-radius:4px;margin-left:8px;">HEX模式</span></div>
                 <textarea class="send-input" id="serial-send-input" rows="3" placeholder="输入要发送的数据..."></textarea>
                 <div class="send-control-row">
-                    <div class="send-options">
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="hex-mode-toggle">
-                            <span class="toggle-slider"></span>
-                        </label>
-                        <span class="toggle-label">HEX 模式</span>
+                    <div class="send-options" style="display:flex;align-items:center;gap:16px;">
+                        <div style="display:flex;align-items:center;gap:4px;">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="hex-mode-toggle">
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span class="toggle-label">HEX 发送</span>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:4px;">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="recv-hex-mode-toggle">
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span class="toggle-label">HEX 显示</span>
+                        </div>
+                        <button class="send-btn" id="btn-clear-receive" style="background:#f1f3f4;color:#5f6368;border:1px solid #dadce0;padding:6px 12px;border-radius:4px;cursor:pointer;font-size:13px;transition:all 0.15s ease;" onmouseover="this.style.background='#e8eaed'" onmouseout="this.style.background='#f1f3f4'" onmousedown="this.style.background='#dadce0'" onmouseup="this.style.background='#e8eaed'">清除</button>
                     </div>
                     <div class="send-buttons">
                         <button class="send-btn send-btn-primary" id="btn-serial-send">发送</button>
@@ -806,6 +818,8 @@
         let sendBytes = 0;
         let currentMenu = null;
         let currentDropdown = null;
+        let receiveHexMode = false;
+        let serialPollInterval = null;
         
         function initCustomDropdowns() {
             document.querySelectorAll('.custom-dropdown').forEach(dropdown => {
@@ -1064,6 +1078,24 @@
                         if (params.xonxoff) info += '|XON/XOFF';
                         updateStatus(true, params.port, info);
                         appendReceive('连接成功: ' + port + ' (' + info + ')');
+                        
+                        if (window.serialPollInterval) {
+                            clearInterval(window.serialPollInterval);
+                        }
+                        window.serialPollInterval = setInterval(function() {
+                            const cmd = receiveHexMode ? 'serial_assistant:receive_hex' : 'serial_assistant:receive';
+                            window.mbQuery(0, cmd, function(cmsg, resp) {
+                                try {
+                                    const r = JSON.parse(resp);
+                                    if (r.status === 'success' && r.data && r.data.length > 0) {
+                                        const timestamp = new Date().toLocaleTimeString();
+                                        receiveArea.value += '[' + timestamp + '] ' + r.data + '\n';
+                                        receiveArea.scrollTop = receiveArea.scrollHeight;
+                                    }
+                                } catch(e) {}
+                            });
+                        }, 100);
+                        
                         refreshBtn.click();
                     } else {
                         appendReceive('连接失败: ' + result.message);
@@ -1075,6 +1107,10 @@
         });
         
         disconnectBtn.addEventListener('click', function() {
+            if (window.serialPollInterval) {
+                clearInterval(window.serialPollInterval);
+                window.serialPollInterval = undefined;
+            }
             window.mbQuery(0, 'serial_assistant:close', function(customMsg, response) {
                 try {
                     const result = JSON.parse(response);
@@ -1164,6 +1200,14 @@
             }
         });
         
+        document.getElementById('recv-hex-mode-toggle').addEventListener('change', function() {
+            receiveHexMode = this.checked;
+        });
+        
+        document.getElementById('btn-clear-receive').addEventListener('click', function() {
+            receiveArea.value = '';
+        });
+        
         document.getElementById('btn-minimize').addEventListener('click', function() {
             window.mbQuery(0, 'titlebar:minimize', function() {});
         });
@@ -1175,7 +1219,14 @@
         document.getElementById('btn-close').addEventListener('click', function() {
             window.mbQuery(0, 'titlebar:close', function() {});
         });
-        
+
+        window.onSerialDataReceived = function(data) {
+            console.log('[FRONTEND] onSerialDataReceived 被调用, 数据:', data);
+            appendReceive(data);
+        };
+
+        console.log('[FRONTEND] onSerialDataReceived 函数已注册');
+
         initCustomDropdowns();
         refreshBtn.click();
     </script>

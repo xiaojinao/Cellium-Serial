@@ -33,6 +33,7 @@ class MiniBlinkBridge:
             script: JavaScript 代码字符串
         """
         try:
+            logger.debug(f"[BRIDGE] 发送JS: {script[:100]}")
             self.lib.mbRunJs(
                 self.webview, None,
                 script.encode('utf-8'),
@@ -40,6 +41,25 @@ class MiniBlinkBridge:
             )
         except Exception as e:
             logger.error(f"[ERROR] 发送 JS 失败: {e}")
+            import traceback
+            logger.error(f"[ERROR] 堆栈: {traceback.format_exc()}")
+    
+    def eval_js(self, expression):
+        """在全局作用域执行 JS 表达式
+        
+        Args:
+            expression: JS 表达式
+        """
+        try:
+            script = f"try {{ {expression} }} catch(e) {{ console.error('JS Error:', e.message); }}"
+            logger.debug(f"[BRIDGE] evalJS: {expression[:100]}")
+            self.lib.mbRunJs(
+                self.webview, None,
+                script.encode('utf-8'),
+                True, None, None, None
+            )
+        except Exception as e:
+            logger.error(f"[ERROR] 执行 JS 失败: {e}")
     
     def set_element_value(self, element_id, value):
         """设置 HTML 元素的值

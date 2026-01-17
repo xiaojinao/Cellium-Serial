@@ -67,6 +67,12 @@ class SerialAssistantCell(ICell, metaclass=AutoInjectMeta):
 
             elif command == "get_status":
                 return self._get_status()
+            
+            elif command == "receive":
+                return self._receive_data()
+            
+            elif command == "receive_hex":
+                return self._receive_hex()
 
             return json.dumps({"status": "error", "message": f"Unknown command: {command}"}, ensure_ascii=False)
         except Exception as e:
@@ -80,7 +86,9 @@ class SerialAssistantCell(ICell, metaclass=AutoInjectMeta):
             "close": "关闭当前串口",
             "send": "发送字符串数据",
             "send_hex": "发送十六进制数据",
-            "get_status": "获取串口状态"
+            "get_status": "获取串口状态",
+            "receive": "接收数据（轮询模式，字符串）",
+            "receive_hex": "接收数据（轮询模式，HEX）"
         }
 
     def __init__(self):
@@ -88,6 +96,7 @@ class SerialAssistantCell(ICell, metaclass=AutoInjectMeta):
         self._read_thread: Optional[threading.Thread] = None
         self._running = False
         self._received_data: List[str] = []
+        self._received_hex: List[str] = []
         self._sent_data: List[str] = []
         self._lock = threading.Lock()
         self._current_params: Dict[str, Any] = {}
@@ -192,14 +201,15 @@ class SerialAssistantCell(ICell, metaclass=AutoInjectMeta):
                     with self._lock:
                         data_str = data.decode('utf-8', errors='replace')
                         self._received_data.append(data_str)
-
+                        hex_str = ' '.join(f'{b:02X}' for b in data)
+                        self._received_hex.append(hex_str)
+                    
                     logger.debug(f"收到数据: {data_str[:100]}")
-                    event_bus.publish("serial.data_received", data=data_str)
 
             except Exception as e:
                 logger.error(f"读取串口数据错误: {e}")
                 break
-
+    
     def _send_data(self, data: str) -> str:
         """发送字符串数据"""
         if not self._serial_port or not self._serial_port.is_open:
@@ -252,7 +262,29 @@ class SerialAssistantCell(ICell, metaclass=AutoInjectMeta):
             "received_count": len(self._received_data),
             "sent_count": len(self._sent_data)
         }, ensure_ascii=False)
-
+    
+    def _receive_data(self) -> str:
+        """获取并清空已接收的数据"""
+        with self._lock:
+            data = ''.join(self._received_data)
+            self._received_data = []
+        
+        return json.dumps({
+            "status": "success",
+            "data": data
+        }, ensure_ascii=False)
+    
+    def _receive_hex(self) -> str:
+        """获取并清空已接收的HEX数据"""
+        with self._lock:
+            data = ' '.join(self._received_hex)
+            self._received_hex = []
+        
+        return json.dumps({
+            "status": "success",
+            "data": data
+        }, ensure_ascii=False)
+    
     def get_received_data(self) -> str:
         """获取所有已接收数据"""
         with self._lock:

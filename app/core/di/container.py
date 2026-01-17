@@ -27,20 +27,23 @@ class DIContainer:
         """注册服务
         
         Args:
-            service_type: 服务类型（类或协议）
+            service_type: 服务类型（类或协议），或字符串别名
             instance: 可选，预配置实例
             singleton: 是否单例模式
         """
-        key = f"{service_type.__module__}.{service_type.__name__}"
+        if isinstance(service_type, str):
+            key = service_type
+        else:
+            key = f"{service_type.__module__}.{service_type.__name__}"
         
         if instance is not None:
             self._services[key] = (instance, singleton)
             if singleton:
                 self._singletons[key] = instance
-            logger.info(f"已注册服务: {service_type.__name__} (singleton={singleton})")
+            logger.info(f"已注册服务: {key} (singleton={singleton})")
         else:
             self._services[key] = (None, singleton)
-            logger.info(f"已注册工厂: {service_type.__name__}")
+            logger.info(f"已注册工厂: {key}")
     
     def register_factory(self, service_type: Type, factory: Callable):
         """注册工厂函数
@@ -57,15 +60,18 @@ class DIContainer:
         """解析服务实例
         
         Args:
-            service_type: 服务类型
+            service_type: 服务类型，或字符串别名
             
         Returns:
             Any: 服务实例
         """
-        key = f"{service_type.__module__}.{service_type.__name__}"
+        if isinstance(service_type, str):
+            key = service_type
+        else:
+            key = f"{service_type.__module__}.{service_type.__name__}"
         
         if key not in self._services:
-            raise ValueError(f"[DI] 服务未注册: {service_type.__name__}")
+            raise ValueError(f"[DI] 服务未注册: {key}")
         
         instance_or_factory, is_singleton = self._services[key]
         
@@ -92,12 +98,15 @@ class DIContainer:
         """检查服务是否已注册
         
         Args:
-            service_type: 服务类型
+            service_type: 服务类型，或字符串别名
             
         Returns:
             bool: 是否已注册
         """
-        key = f"{service_type.__module__}.{service_type.__name__}"
+        if isinstance(service_type, str):
+            key = service_type
+        else:
+            key = f"{service_type.__module__}.{service_type.__name__}"
         return key in self._services
 
 

@@ -209,34 +209,42 @@ class StaticServer:
     def _create_handler(self):
         """创建请求处理器"""
         directory = self.directory
+        project_root = _get_project_root()
         
         class SPAHandler(http.server.SimpleHTTPRequestHandler):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, directory=directory, **kwargs)
             
             def do_GET(self):
-                """处理 GET 请求，支持 SPA 路由回退"""
-                # 获取请求的文件路径
+                """处理 GET 请求，支持 SPA 路由回退和字体文件"""
                 path = self.path
                 if path == '/':
                     path = '/index.html'
                 
-                # 移除查询参数
                 if '?' in path:
                     path = path.split('?')[0]
                 
-                # 转换路径
                 file_path = self.translate_path(path)
                 
-                # 如果文件不存在，返回 index.html（SPA 路由回退）
                 if not os.path.exists(file_path):
+                    if path.startswith('/font/'):
+                        font_path = project_root / path[1:]
+                        if font_path.exists():
+                            self.path = path
+                            return super().do_GET()
                     logger.debug(f"文件不存在，回退到 index.html: {path}")
                     self.path = '/index.html'
                 
                 return super().do_GET()
             
+            def translate_path(self, path):
+                if path.startswith('/font/'):
+                    font_path = project_root / path[1:]
+                    if font_path.exists():
+                        return str(font_path)
+                return super().translate_path(path)
+            
             def log_message(self, format, *args):
-                """自定义日志格式"""
                 logger.debug(f"[HTTP] {args[0]}")
         
         return SPAHandler
@@ -602,21 +610,6 @@ class MainWindow:
             logger.error(f"移除标题栏失败: {e}")
     
     def run(self):
-        
-        if not self.load_dll():
-            return
-        
-        if not self.init_engine():
-            return
-        
-        if not self.create_window():
-            return
-        
-        self.load_window_icon()
-        
-        # 初始化桥接模块
-        self.bridge = MiniBlinkBridge(self)
-        
         # 初始化消息处理器组件
         self.message_handler = MessageHandler(self.hwnd, None)
         
