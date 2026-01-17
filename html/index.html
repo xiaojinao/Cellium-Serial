@@ -867,33 +867,33 @@
                      currentDropdown = dropdown;
                  });
                 
-                items.forEach(item => {
-                    item.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        const value = item.getAttribute('data-value');
-                        const text = item.textContent;
-                        
-                        trigger.setAttribute('data-value', value);
-                        trigger.textContent = text;
-                        
-                        items.forEach(i => i.classList.remove('selected'));
-                        item.classList.add('selected');
-                        
-                        dropdown.classList.remove('open');
-                        trigger.classList.remove('open');
-                        menu.classList.remove('show');
-                        
-                        menu.style.position = '';
-                        menu.style.left = '';
-                        menu.style.top = '';
-                        menu.style.width = '';
-                        menu.style.zIndex = '';
-                        originalParent.appendChild(menu);
-                        
-                        currentMenu = null;
-                        currentDropdown = null;
-                        menuInBody = false;
-                    });
+                menu.addEventListener('click', (e) => {
+                    const item = e.target.closest('.dropdown-item');
+                    if (!item) return;
+                    e.stopPropagation();
+                    const value = item.getAttribute('data-value');
+                    const text = item.textContent;
+
+                    trigger.setAttribute('data-value', value);
+                    trigger.textContent = text;
+
+                    menu.querySelectorAll('.dropdown-item').forEach(i => i.classList.remove('selected'));
+                    item.classList.add('selected');
+
+                    dropdown.classList.remove('open');
+                    trigger.classList.remove('open');
+                    menu.classList.remove('show');
+
+                    menu.style.position = '';
+                    menu.style.left = '';
+                    menu.style.top = '';
+                    menu.style.width = '';
+                    menu.style.zIndex = '';
+                    originalParent.appendChild(menu);
+
+                    currentMenu = null;
+                    currentDropdown = null;
+                    menuInBody = false;
                 });
             });
             
@@ -1006,6 +1006,7 @@
         }
         
         refreshBtn.addEventListener('click', function() {
+            const previousPort = getDropdownValue('dropdown-port');
             window.mbQuery(0, 'serial_assistant:list_ports', function(customMsg, response) {
                 try {
                     const result = JSON.parse(response);
@@ -1025,10 +1026,14 @@
                                 item.textContent = port.device;
                                 menu.appendChild(item);
                             });
-                            const firstPort = result.ports[0].device;
                             const trigger = portSelect.querySelector('.dropdown-trigger');
-                            trigger.setAttribute('data-value', firstPort);
-                            trigger.textContent = firstPort;
+                            let selectedPort = previousPort;
+                            const portExists = result.ports.some(p => p.device === previousPort);
+                            if (!portExists && result.ports.length > 0) {
+                                selectedPort = result.ports[0].device;
+                            }
+                            trigger.setAttribute('data-value', selectedPort);
+                            trigger.textContent = selectedPort;
                         }
                     }
                 } catch (e) {
