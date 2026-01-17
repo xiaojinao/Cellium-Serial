@@ -4,6 +4,7 @@
 提供串口通信功能，支持数据收发
 """
 
+import json
 import logging
 import threading
 import serial
@@ -37,7 +38,7 @@ class SerialAssistantCell(ICell, metaclass=AutoInjectMeta):
     def cell_name(self) -> str:
         return "serial_assistant"
 
-    def execute(self, command: str, *args, **kwargs) -> Any:
+    def execute(self, command: str, *args, **kwargs) -> str:
         """命令分发"""
         try:
             if command == "list_ports":
@@ -67,10 +68,10 @@ class SerialAssistantCell(ICell, metaclass=AutoInjectMeta):
             elif command == "get_status":
                 return self._get_status()
 
-            return {"status": "error", "message": f"Unknown command: {command}"}
+            return json.dumps({"status": "error", "message": f"Unknown command: {command}"}, ensure_ascii=False)
         except Exception as e:
             logger.error(f"串口命令执行失败: {e}")
-            return {"status": "error", "message": str(e)}
+            return json.dumps({"status": "error", "message": str(e)}, ensure_ascii=False)
 
     def get_commands(self) -> dict:
         return {
@@ -91,7 +92,7 @@ class SerialAssistantCell(ICell, metaclass=AutoInjectMeta):
         self._lock = threading.Lock()
         self._current_params: Dict[str, Any] = {}
 
-    def _list_ports(self) -> Dict[str, Any]:
+    def _list_ports(self) -> str:
         """获取可用串口列表"""
         ports = serial.tools.list_ports.comports()
         port_list = []
@@ -102,17 +103,17 @@ class SerialAssistantCell(ICell, metaclass=AutoInjectMeta):
                 "hwid": port.hwid
             })
         logger.info(f"发现 {len(port_list)} 个串口")
-        return {"status": "success", "ports": port_list}
+        return json.dumps({"status": "success", "ports": port_list}, ensure_ascii=False)
 
     def _open_port(self, port: str = '', baudrate: int = 9600, bytesize: int = 8,
                    parity: Optional[str] = None, stopbits: float = 1,
-                   rtscts: bool = False, xonxoff: bool = False) -> Dict[str, Any]:
+                   rtscts: bool = False, xonxoff: bool = False) -> str:
         """打开串口（支持完整参数配置）"""
         if self._serial_port and self._serial_port.is_open:
             self._close_port()
 
         if not port:
-            return {"status": "error", "message": "未指定串口号"}
+            return json.dumps({"status": "error", "message": "未指定串口号"}, ensure_ascii=False)
 
         try:
             serial_bytesize = BYTESIZE_MAP.get(bytesize, serial.EIGHTBITS)
@@ -147,7 +148,7 @@ class SerialAssistantCell(ICell, metaclass=AutoInjectMeta):
             logger.info(f"串口已打开: {port}, 波特率: {baudrate}, 数据位: {bytesize}, 校验: {parity}, 停止位: {stopbits}")
             event_bus.publish("serial.opened", **self._current_params)
 
-            return {
+            return json.dumps({
                 "status": "success",
                 "message": f"串口已打开: {port}",
                 "port": port,
@@ -155,13 +156,13 @@ class SerialAssistantCell(ICell, metaclass=AutoInjectMeta):
                 "bytesize": bytesize,
                 "parity": parity,
                 "stopbits": stopbits
-            }
+            }, ensure_ascii=False)
         except Exception as e:
             error_msg = f"打开串口失败: {e}"
             logger.error(error_msg)
-            return {"status": "error", "message": error_msg}
+            return json.dumps({"status": "error", "message": error_msg}, ensure_ascii=False)
 
-    def _close_port(self) -> Dict[str, Any]:
+    def _close_port(self) -> str:
         """关闭串口"""
         self._running = False
 
@@ -175,7 +176,7 @@ class SerialAssistantCell(ICell, metaclass=AutoInjectMeta):
         logger.info("串口已关闭")
         event_bus.publish("serial.closed")
 
-        return {"status": "success", "message": "串口已关闭"}
+        return json.dumps({"status": "success", "message": "串口已关闭"}, ensure_ascii=False)
 
     def _start_read_thread(self):
         """启动数据读取线程"""
@@ -199,10 +200,10 @@ class SerialAssistantCell(ICell, metaclass=AutoInjectMeta):
                 logger.error(f"读取串口数据错误: {e}")
                 break
 
-    def _send_data(self, data: str) -> Dict[str, Any]:
+    def _send_data(self, data: str) -> str:
         """发送字符串数据"""
         if not self._serial_port or not self._serial_port.is_open:
-            return {"status": "error", "message": "串口未打开"}
+            return json.dumps({"status": "error", "message": "串口未打开"}, ensure_ascii=False)
 
         try:
             self._serial_port.write(data.encode('utf-8'))
@@ -212,16 +213,16 @@ class SerialAssistantCell(ICell, metaclass=AutoInjectMeta):
             logger.debug(f"发送数据: {data[:100]}")
             event_bus.publish("serial.data_sent", data=data)
 
-            return {"status": "success", "message": "数据已发送", "length": len(data)}
+            return json.dumps({"status": "success", "message": "数据已发送", "length": len(data)}, ensure_ascii=False)
         except Exception as e:
             error_msg = f"发送数据失败: {e}"
             logger.error(error_msg)
-            return {"status": "error", "message": error_msg}
+            return json.dumps({"status": "error", "message": error_msg}, ensure_ascii=False)
 
-    def _send_hex(self, hex_data: str) -> Dict[str, Any]:
+    def _send_hex(self, hex_data: str) -> str:
         """发送十六进制数据"""
         if not self._serial_port or not self._serial_port.is_open:
-            return {"status": "error", "message": "串口未打开"}
+            return json.dumps({"status": "error", "message": "串口未打开"}, ensure_ascii=False)
 
         try:
             data_bytes = bytes.fromhex(hex_data.replace(' ', ''))
@@ -233,24 +234,24 @@ class SerialAssistantCell(ICell, metaclass=AutoInjectMeta):
             logger.debug(f"发送十六进制: {hex_data}")
             event_bus.publish("serial.data_sent", data=hex_data, hex=True)
 
-            return {"status": "success", "message": "十六进制数据已发送", "length": len(data_bytes)}
+            return json.dumps({"status": "success", "message": "十六进制数据已发送", "length": len(data_bytes)}, ensure_ascii=False)
         except Exception as e:
             error_msg = f"发送十六进制失败: {e}"
             logger.error(error_msg)
-            return {"status": "error", "message": error_msg}
+            return json.dumps({"status": "error", "message": error_msg}, ensure_ascii=False)
 
-    def _get_status(self) -> Dict[str, Any]:
+    def _get_status(self) -> str:
         """获取串口状态"""
         is_open = bool(self._serial_port and self._serial_port.is_open)
 
-        return {
+        return json.dumps({
             "status": "success",
             "is_open": is_open,
             "port": self._serial_port.port if self._serial_port else None,
             "baudrate": self._serial_port.baudrate if self._serial_port else None,
             "received_count": len(self._received_data),
             "sent_count": len(self._sent_data)
-        }
+        }, ensure_ascii=False)
 
     def get_received_data(self) -> str:
         """获取所有已接收数据"""
