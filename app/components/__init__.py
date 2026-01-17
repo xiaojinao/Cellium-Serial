@@ -4,7 +4,7 @@
 包含各种功能组件
 """
 
-from .calculator import Calculator
-from .jsontest import JsonTestCell
 
-__all__ = ['Calculator', 'JsonTestCell']
+from .serial_assistant import SerialAssistantCell
+
+__all__ = ['SerialAssistantCell']

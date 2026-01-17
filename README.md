@@ -1,3 +1,156 @@
+# Cellium-Serial 串口组件扩展
+
+<div align="center">
+
+![Python](https://img.shields.io/badge/python-3.10%20|%203.11%20|%203.12%20|%203.13-blue?logo=python&style=flat-square)
+![License](https://img.shields.io/badge/license-MIT-blue?logo=mit&style=flat-square)
+![Platform](https://img.shields.io/badge/platform-Windows-blue?logo=windows&style=flat-square)
+![MiniBlink](https://img.shields.io/badge/MiniBlink-v132-yellow?logo=webkit&style=flat-square)
+
+![GitHub Stars](https://img.shields.io/github/stars/Cellium-Project/Cellium?logo=github&style=flat-square)
+![GitHub Forks](https://img.shields.io/github/forks/Cellium-Project/Cellium?logo=github&style=flat-square)
+![GitHub Issues](https://img.shields.io/github/issues/Cellium-Project/Cellium?logo=github&style=flat-square)
+![GitHub Last Commit](https://img.shields.io/github/last-commit/Cellium-Project/Cellium?logo=github&style=flat-square)
+
+</div>
+
+## 串口组件 (SerialCell)
+
+**Cellium-Serial** 是 Cellium 项目的串口通信扩展分支，在原项目基础上新增了完整的串口通信支持。
+
+### 功能特性
+
+| 功能 | 说明 |
+|------|------|
+| **端口管理** | 自动扫描可用串口，中文端口名显示 |
+| **参数配置** | 支持波特率、数据位、停止位、流控等参数配置 |
+| **数据收发** | 十六进制和文本两种数据格式支持 |
+| **自动重连** | 连接断开后自动尝试重连 |
+| **数据保存** | 自动保存收发数据到文件 |
+| **事件通知** | 连接状态、数据接收等事件通过 EventBus 通知 |
+
+### 快速开始
+
+```python
+from app.components.serial_cell import SerialCell
+
+serial = SerialCell()
+
+# 扫描可用端口
+ports = serial.execute("scan_ports")
+
+# 打开串口
+result = serial.execute("open", "COM3", 9600)
+
+# 发送数据
+serial.execute("send", "Hello World")
+
+# 接收数据
+data = serial.execute("receive")
+```
+
+### 前端调用示例
+
+```javascript
+// 扫描可用串口
+window.mbQuery(0, 'serial:scan_ports', function(ports) {
+    console.log('可用端口:', ports);
+});
+
+// 打开串口
+window.mbQuery(0, 'serial:open:COM3:9600', function(result) {
+    console.log('打开结果:', result);
+});
+
+// 发送文本数据
+window.mbQuery(0, 'serial:send:Hello World', function(result) {
+    console.log('发送结果:', result);
+});
+
+// 发送十六进制数据
+window.mbQuery(0, 'serial:send_hex:48454C4C4F', function(result) {
+    console.log('发送结果:', result);
+});
+
+// 接收数据
+window.mbQuery(0, 'serial:receive', function(data) {
+    console.log('收到数据:', data);
+});
+
+// 关闭串口
+window.mbQuery(0, 'serial:close', function(result) {
+    console.log('关闭结果:', result);
+});
+```
+
+### 组件配置
+
+在 `config/settings.yaml` 中注册组件：
+
+```yaml
+enabled_components:
+  - app.components.serial_cell.SerialCell
+```
+
+### 事件订阅
+
+```python
+from app.core.bus import event
+
+class MyComponent:
+    @event("serial.data_received")
+    def on_serial_data(self, event_name, **kwargs):
+        """串口数据接收事件"""
+        data = kwargs.get('data')
+        port = kwargs.get('port')
+        print(f"从 {port} 收到数据: {data}")
+    
+    @event("serial.connected")
+    def on_serial_connected(self, event_name, **kwargs):
+        """串口连接事件"""
+        port = kwargs.get('port')
+        print(f"串口 {port} 已连接")
+    
+    @event("serial.disconnected")
+    def on_serial_disconnected(self, event_name, **kwargs):
+        """串口断开事件"""
+        port = kwargs.get('port')
+        print(f"串口 {port} 已断开")
+```
+
+---
+
+### 依赖库
+
+| 库名 | 版本要求 | 用途 |
+|------|---------|------|
+| **pyserial** | >= 3.5 | 串口通信核心库，提供串口操作 API |
+| pyyaml | >= 6.0 | 配置文件解析 |
+| nuitka | >= 1.8.0 | 程序打包（可选） |
+
+安装方式：
+
+```bash
+pip install pyserial>=3.5
+```
+
+或安装所有依赖：
+
+```bash
+pip install -r requirements.txt
+```
+
+**Python 标准库依赖：**
+
+- `logging` - 日志记录
+- `threading` - 多线程支持
+- `typing` - 类型注解
+- `ctypes` - Windows API 调用
+
+---
+
+> **基于 Cellium 项目**：本项目基于 [Cellium](https://github.com/Cellium-Project/Cellium) fork，保留了原项目的核心架构，仅新增串口通信组件。
+
 [English](README.en.md)
 
 <div align="center">

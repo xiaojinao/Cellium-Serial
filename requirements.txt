@@ -6,6 +6,9 @@ nuitka>=1.8.0
 # 配置文件解析
 pyyaml>=6.0
 
+# 串口通信
+pyserial>=3.5
+
 # 注意：其他功能使用 Python 标准库，无需额外依赖
 # - ctypes: Windows API 调用
 # - os, sys: 文件和系统操作
