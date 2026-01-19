@@ -662,24 +662,18 @@
                     <div class="form-group">
                         <label class="form-label">波特率</label>
                         <div class="custom-dropdown" id="dropdown-baudrate">
-                            <button class="dropdown-trigger" type="button" data-value="9600">9600</button>
+                            <button class="dropdown-trigger" type="button" data-value="115200">115200</button>
                             <div class="dropdown-menu">
-                                <div class="dropdown-item" data-value="110">110</div>
                                 <div class="dropdown-item" data-value="300">300</div>
-                                <div class="dropdown-item" data-value="600">600</div>
                                 <div class="dropdown-item" data-value="1200">1200</div>
                                 <div class="dropdown-item" data-value="2400">2400</div>
                                 <div class="dropdown-item" data-value="4800">4800</div>
-                                <div class="dropdown-item selected" data-value="9600">9600</div>
-                                <div class="dropdown-item" data-value="14400">14400</div>
+                                <div class="dropdown-item" data-value="9600">9600</div>
                                 <div class="dropdown-item" data-value="19200">19200</div>
                                 <div class="dropdown-item" data-value="38400">38400</div>
-                                <div class="dropdown-item" data-value="56000">56000</div>
                                 <div class="dropdown-item" data-value="57600">57600</div>
-                                <div class="dropdown-item" data-value="115200">115200</div>
-                                <div class="dropdown-item" data-value="128000">128000</div>
+                                <div class="dropdown-item selected" data-value="115200">115200</div>
                                 <div class="dropdown-item" data-value="230400">230400</div>
-                                <div class="dropdown-item" data-value="256000">256000</div>
                                 <div class="dropdown-item" data-value="460800">460800</div>
                                 <div class="dropdown-item" data-value="921600">921600</div>
                             </div>
@@ -1082,6 +1076,16 @@
                         if (window.serialPollInterval) {
                             clearInterval(window.serialPollInterval);
                         }
+
+                        function getPollInterval(baudrate) {
+                            if (baudrate >= 921600) return 10;
+                            if (baudrate >= 460800) return 20;
+                            if (baudrate >= 230400) return 30;
+                            if (baudrate >= 115200) return 50;
+                            return 100;
+                        }
+
+                        const pollInterval = getPollInterval(params.baudrate);
                         window.serialPollInterval = setInterval(function() {
                             const cmd = receiveHexMode ? 'serial_assistant:receive_hex' : 'serial_assistant:receive';
                             window.mbQuery(0, cmd, function(cmsg, resp) {
@@ -1094,7 +1098,7 @@
                                     }
                                 } catch(e) {}
                             });
-                        }, 100);
+                        }, pollInterval);
                         
                         refreshBtn.click();
                     } else {
