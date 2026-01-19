@@ -242,6 +242,10 @@ class StaticServer:
                     font_path = project_root / path[1:]
                     if font_path.exists():
                         return str(font_path)
+                if path == '/logo.png':
+                    logo_path = project_root / 'logo.png'
+                    if logo_path.exists():
+                        return str(logo_path)
                 return super().translate_path(path)
             
             def log_message(self, format, *args):

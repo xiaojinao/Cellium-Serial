@@ -14,6 +14,7 @@ python -m nuitka --standalone --onefile ^
 --include-package=app.core ^
 --include-package=app.components ^
 --include-data-files="dll/mb132_x64.dll=dll/mb132_x64.dll" ^
+--include-data-files="logo.png=logo.png" ^
 --include-data-dir="font=font" ^
 --include-data-dir="html=html" ^
 --include-data-dir="config=config" ^

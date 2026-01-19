@@ -49,6 +49,18 @@
             font-weight: 500;
         }
 
+        .titlebar-logo {
+            height: 24px;
+            margin-right: 10px;
+            -webkit-app-region: no-drag;
+        }
+
+        .titlebar-left {
+            display: flex;
+            align-items: center;
+            -webkit-app-region: drag;
+        }
+
         .titlebar-controls {
             -webkit-app-region: no-drag;
             display: flex;
@@ -633,7 +645,10 @@
 </head>
 <body>
     <div class="titlebar">
-        <span class="titlebar-title">串口调试助手</span>
+        <div class="titlebar-left">
+            <img src="logo.png" class="titlebar-logo" alt="Logo">
+            <span class="titlebar-title">串口调试助手</span>
+        </div>
         <div class="titlebar-controls">
             <button class="titlebar-btn" id="btn-minimize" title="最小化">
                 <svg viewBox="0 0 12 12"><rect y="5" width="12" height="2" fill="currentColor"/></svg>
@@ -991,8 +1006,13 @@
             }
         }
         
+        function getTimestamp() {
+            const now = new Date();
+            return now.toLocaleTimeString('zh-CN', { hour12: false }) + '.' + now.getMilliseconds().toString().padStart(3, '0');
+        }
+        
         function appendReceive(data) {
-            const timestamp = new Date().toLocaleTimeString();
+            const timestamp = getTimestamp();
             receiveArea.value += '[' + timestamp + '] ' + data + '\n';
             receiveArea.scrollTop = receiveArea.scrollHeight;
             recvBytes += data.length;
@@ -1076,31 +1096,139 @@
                         if (window.serialPollInterval) {
                             clearInterval(window.serialPollInterval);
                         }
-
-                        function getPollInterval(baudrate) {
-                            if (baudrate >= 921600) return 10;
-                            if (baudrate >= 460800) return 20;
-                            if (baudrate >= 230400) return 30;
-                            if (baudrate >= 115200) return 50;
-                            return 100;
+                        if (window.serialEventSource) {
+                            window.serialEventSource.close();
                         }
 
-                        const pollInterval = getPollInterval(params.baudrate);
-                        window.serialPollInterval = setInterval(function() {
-                            const cmd = receiveHexMode ? 'serial_assistant:receive_hex' : 'serial_assistant:receive';
-                            window.mbQuery(0, cmd, function(cmsg, resp) {
-                                try {
-                                    const r = JSON.parse(resp);
-                                    if (r.status === 'success' && r.data && r.data.length > 0) {
-                                        const timestamp = new Date().toLocaleTimeString();
-                                        receiveArea.value += '[' + timestamp + '] ' + r.data + '\n';
+                        window.mbQuery(0, 'serial_assistant:start_sse', function(cmsg, sseResponse) {
+                            try {
+                                const sseResult = JSON.parse(sseResponse);
+                                if (sseResult.status === 'success') {
+                                    const sseUrl = sseResult.url;
+                                    
+                                    window.serialEventSource = new EventSource(sseUrl);
+                                    
+                                    window.sseMergeBuffer = [];
+                                    window.sseLastReceiveTime = 0;
+                                    window.sseFlushTimer = null;
+                                    
+                                    function flushSseBuffer() {
+                                        if (!window.sseMergeBuffer || window.sseMergeBuffer.length === 0) return;
+                                        
+                                        const lastItem = window.sseMergeBuffer[window.sseMergeBuffer.length - 1];
+                                        const elapsed = lastItem.elapsed.toFixed(1);
+                                        
+                                        let combined = '';
+                                        if (receiveHexMode) {
+                                            for (const item of window.sseMergeBuffer) {
+                                                if (combined) combined += ' ';
+                                                combined += item.data;
+                                            }
+                                        } else {
+                                            for (const item of window.sseMergeBuffer) {
+                                                combined += item.data;
+                                            }
+                                        }
+                                        
+                                        if (combined.includes('\n')) {
+                                            const parts = combined.split('\n');
+                                            for (let i = 0; i < parts.length; i++) {
+                                                const part = parts[i];
+                                                if (part || i < parts.length - 1) {
+                                                    receiveArea.value += '[' + elapsed + 'ms] ' + (part || '\\n') + '\n';
+                                                }
+                                            }
+                                        } else {
+                                            receiveArea.value += '[' + elapsed + 'ms] ' + combined + '\n';
+                                        }
                                         receiveArea.scrollTop = receiveArea.scrollHeight;
+                                        
+                                        window.sseMergeBuffer = [];
+                                        window.sseFlushTimer = null;
                                     }
-                                } catch(e) {}
-                            });
-                        }, pollInterval);
-                        
-                        refreshBtn.click();
+                                    
+                                    window.serialEventSource.onopen = function() {
+                                    };
+                                    
+                                    window.serialEventSource.onmessage = function(event) {
+                                        try {
+                                            const data = JSON.parse(event.data);
+                                            if (data.type === 'receive') {
+                                                const now = performance.now();
+                                                const elapsed = data.elapsed_ms;
+                                                const displayData = receiveHexMode ? data.hex : data.data_str;
+                                                
+                                                if (window.sseMergeBuffer.length > 0 && elapsed - window.sseMergeBuffer[window.sseMergeBuffer.length - 1].elapsed > 15) {
+                                                    flushSseBuffer();
+                                                }
+                                                
+                                                window.sseMergeBuffer.push({ elapsed: elapsed, data: displayData });
+                                                window.sseLastReceiveTime = now;
+                                                
+                                                if (window.sseFlushTimer) {
+                                                    clearTimeout(window.sseFlushTimer);
+                                                }
+                                                window.sseFlushTimer = setTimeout(flushSseBuffer, 20);
+                                            }
+                                        } catch(e) {
+                                            console.error('SSE数据解析失败:', e);
+                                        }
+                                    };
+                                    
+                                    function setupEventSourceHandlers() {
+                                        window.sseMergeBuffer = [];
+                                        window.sseFlushTimer = null;
+                                        
+                                        window.serialEventSource.onmessage = function(event) {
+                                            try {
+                                                const data = JSON.parse(event.data);
+                                                if (data.type === 'receive') {
+                                                    const now = performance.now();
+                                                    const elapsed = data.elapsed_ms;
+                                                    const displayData = receiveHexMode ? data.hex : data.data_str;
+                                                    
+                                                    if (window.sseMergeBuffer.length > 0 && elapsed - window.sseMergeBuffer[window.sseMergeBuffer.length - 1].elapsed > 15) {
+                                                        flushSseBuffer();
+                                                    }
+                                                    
+                                                    window.sseMergeBuffer.push({ elapsed: elapsed, data: displayData });
+                                                    window.sseLastReceiveTime = now;
+                                                    
+                                                    if (window.sseFlushTimer) {
+                                                        clearTimeout(window.sseFlushTimer);
+                                                    }
+                                                    window.sseFlushTimer = setTimeout(flushSseBuffer, 20);
+                                                }
+                                            } catch(e) {
+                                                console.error('SSE数据解析失败:', e);
+                                            }
+                                        };
+                                    }
+                                    
+                                    window.serialEventSource.onerror = function(error) {
+                                        console.error('SSE错误:', error);
+                                        appendReceive('SSE连接错误，尝试重连...');
+                                        setTimeout(function() {
+                                            if (window.serialEventSource.readyState === EventSource.CLOSED) {
+                                                window.mbQuery(0, 'serial_assistant:start_sse', function(cmsg, resp) {
+                                                    const result = JSON.parse(resp);
+                                                    if (result.status === 'success') {
+                                                        window.serialEventSource = new EventSource(result.url);
+                                                        setupEventSourceHandlers();
+                                                    }
+                                                });
+                                            }
+                                        }, 1000);
+                                    };
+                                    
+                                    refreshBtn.click();
+                                } else {
+                                    appendReceive('SSE启动失败: ' + sseResult.message);
+                                }
+                            } catch(e) {
+                                appendReceive('SSE响应解析失败: ' + e);
+                            }
+                        });
                     } else {
                         appendReceive('连接失败: ' + result.message);
                     }
@@ -1115,18 +1243,29 @@
                 clearInterval(window.serialPollInterval);
                 window.serialPollInterval = undefined;
             }
-            window.mbQuery(0, 'serial_assistant:close', function(customMsg, response) {
-                try {
-                    const result = JSON.parse(response);
-                    if (result.status === 'success') {
-                        updateStatus(false, '');
-                        appendReceive('已断开连接');
-                    } else {
-                        appendReceive('断开失败: ' + result.message);
+            if (window.serialEventSource) {
+                window.serialEventSource.close();
+                window.serialEventSource = undefined;
+            }
+            if (window.sseFlushTimer) {
+                clearTimeout(window.sseFlushTimer);
+                window.sseFlushTimer = null;
+            }
+            window.sseMergeBuffer = [];
+            window.mbQuery(0, 'serial_assistant:stop_sse', function(cmsg, sseResp) {
+                window.mbQuery(0, 'serial_assistant:close', function(customMsg, response) {
+                    try {
+                        const result = JSON.parse(response);
+                        if (result.status === 'success') {
+                            updateStatus(false, '');
+                            appendReceive('已断开连接');
+                        } else {
+                            appendReceive('断开失败: ' + result.message);
+                        }
+                    } catch (e) {
+                        appendReceive('断开响应解析失败: ' + e);
                     }
-                } catch (e) {
-                    appendReceive('断开响应解析失败: ' + e);
-                }
+                });
             });
         });
         
@@ -1160,7 +1299,7 @@
                     if (result.status === 'success') {
                         const len = result.length || data.length;
                         sendBytes += len;
-                        const timestamp = new Date().toLocaleTimeString();
+                        const timestamp = getTimestamp();
                         receiveArea.value += '[' + timestamp + '] [发送] ' + data + '\n';
                         receiveArea.scrollTop = receiveArea.scrollHeight;
                         appendReceive('发送成功 (' + len + ' 字节)');
