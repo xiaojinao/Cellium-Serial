@@ -284,7 +284,7 @@ class MainWindow:
         self.webview = None
         self.hwnd = None
         self.running = True
-        self.title = "Python MiniBlink"
+        self.title = "Cellium Serial"
         
         self._wnd_proc = None
         self._wnd_class = None
@@ -471,7 +471,7 @@ class MainWindow:
             self.hwnd = self.lib.mbGetHostHWND(self.webview)
             
             if self.hwnd:
-                user32.SetWindowTextW(self.hwnd, "Python MiniBlink")
+                user32.SetWindowTextW(self.hwnd, "Cellium Serial")
                 
                 GWL_EXSTYLE = -20
                 GWL_HWNDPARENT = -8
@@ -491,7 +491,7 @@ class MainWindow:
                 
                 shell32 = ctypes.windll.shell32
                 try:
-                    shell32.SetCurrentProcessExplicitAppUserModelIDW("PythonMiniBlink.Browser")
+                    shell32.SetCurrentProcessExplicitAppUserModelIDW("Cellium.Serial")
                     logger.info("AppUserModelID 已设置")
                 except Exception as e:
                     logger.warning(f"设置 AppUserModelID 失败: {e}")

@@ -1011,12 +1011,14 @@
             return now.toLocaleTimeString('zh-CN', { hour12: false }) + '.' + now.getMilliseconds().toString().padStart(3, '0');
         }
         
-        function appendReceive(data) {
+        function appendReceive(data, countBytes = true) {
             const timestamp = getTimestamp();
             receiveArea.value += '[' + timestamp + '] ' + data + '\n';
             receiveArea.scrollTop = receiveArea.scrollHeight;
-            recvBytes += data.length;
-            recvCount.textContent = '(' + recvBytes + ' 字节)';
+            if (countBytes) {
+                recvBytes += data.length;
+                recvCount.textContent = '(' + recvBytes + ' 字节)';
+            }
         }
         
         function getSerialParams() {
@@ -1065,7 +1067,7 @@
                         }
                     }
                 } catch (e) {
-                    appendReceive('解析串口列表失败: ' + e);
+                    appendReceive('解析串口列表失败: ' + e, false);
                 }
             });
         });
@@ -1073,7 +1075,7 @@
         connectBtn.addEventListener('click', function() {
             const port = getDropdownValue('dropdown-port');
             if (!port) {
-                appendReceive('请先选择串口');
+                appendReceive('请先选择串口', false);
                 return;
             }
             
@@ -1091,7 +1093,7 @@
                         if (params.rtscts) info += '|RTS/CTS';
                         if (params.xonxoff) info += '|XON/XOFF';
                         updateStatus(true, params.port, info);
-                        appendReceive('连接成功: ' + port + ' (' + info + ')');
+                        appendReceive('连接成功: ' + port + ' (' + info + ')', false);
                         
                         if (window.serialPollInterval) {
                             clearInterval(window.serialPollInterval);
@@ -1119,14 +1121,17 @@
                                         const elapsed = lastItem.elapsed.toFixed(1);
                                         
                                         let combined = '';
+                                        let byteCount = 0;
                                         if (receiveHexMode) {
                                             for (const item of window.sseMergeBuffer) {
                                                 if (combined) combined += ' ';
                                                 combined += item.data;
+                                                byteCount += item.origData ? item.origData.length : 0;
                                             }
                                         } else {
                                             for (const item of window.sseMergeBuffer) {
                                                 combined += item.data;
+                                                byteCount += item.origData ? item.origData.length : 0;
                                             }
                                         }
                                         
@@ -1143,6 +1148,9 @@
                                         }
                                         receiveArea.scrollTop = receiveArea.scrollHeight;
                                         
+                                        recvBytes += byteCount;
+                                        recvCount.textContent = '(' + recvBytes + ' 字节)';
+                                        
                                         window.sseMergeBuffer = [];
                                         window.sseFlushTimer = null;
                                     }
@@ -1151,6 +1159,7 @@
                                     };
                                     
                                     window.serialEventSource.onmessage = function(event) {
+                                        if (event.data === 'heartbeat') return;
                                         try {
                                             const data = JSON.parse(event.data);
                                             if (data.type === 'receive') {
@@ -1162,7 +1171,11 @@
                                                     flushSseBuffer();
                                                 }
                                                 
-                                                window.sseMergeBuffer.push({ elapsed: elapsed, data: displayData });
+                                                window.sseMergeBuffer.push({ 
+                                                    elapsed: elapsed, 
+                                                    data: displayData,
+                                                    origData: data.data_str
+                                                });
                                                 window.sseLastReceiveTime = now;
                                                 
                                                 if (window.sseFlushTimer) {
@@ -1178,8 +1191,53 @@
                                     function setupEventSourceHandlers() {
                                         window.sseMergeBuffer = [];
                                         window.sseFlushTimer = null;
+                                        window.sseLastReceiveTime = performance.now();
+                                        
+                                        if (window.ssePingInterval) {
+                                            clearInterval(window.ssePingInterval);
+                                        }
+                                        window.ssePingInterval = setInterval(function() {
+                                            if (window.serialEventSource && window.serialEventSource.readyState === EventSource.OPEN) {
+                                                window.mbQuery(0, 'serial_assistant:ping', function() {});
+                                            }
+                                        }, 10000);
+                                        
+                                        if (window.sseHealthCheck) {
+                                             clearInterval(window.sseHealthCheck);
+                                         }
+                                         window.sseHealthCheck = setInterval(function() {
+                                             if (window.sseReconnecting) return;
+                                             
+                                             const es = window.serialEventSource;
+                                             const isOpen = es && es.readyState === EventSource.OPEN;
+                                             const isTimeout = performance.now() - window.sseLastReceiveTime > 5000;
+                                             
+                                             if (!isOpen) {
+                                                 console.warn('SSE连接状态: ' + (es ? es.readyState : 'undefined') + '，尝试重连...');
+                                                 window.mbQuery(0, 'serial_assistant:remove_sse_client', function() {});
+                                                 if (es) {
+                                                     es.close();
+                                                 }
+                                                 window.serialEventSource = undefined;
+                                                 setTimeout(function() {
+                                                     window.sseReconnecting = false;
+                                                     tryReconnectSSE();
+                                                 }, 1000);
+                                             } else if (isTimeout && isOpen) {
+                                                 console.warn('SSE数据超时，尝试重连...');
+                                                 window.mbQuery(0, 'serial_assistant:remove_sse_client', function() {});
+                                                 es.close();
+                                                 window.serialEventSource = undefined;
+                                                 setTimeout(function() {
+                                                     window.sseReconnecting = false;
+                                                     tryReconnectSSE();
+                                                 }, 1000);
+                                             }
+                                         }, 2000);
                                         
                                         window.serialEventSource.onmessage = function(event) {
+                                            window.sseLastReceiveTime = performance.now();
+                                            if (event.data === 'heartbeat') return;
                                             try {
                                                 const data = JSON.parse(event.data);
                                                 if (data.type === 'receive') {
@@ -1191,7 +1249,11 @@
                                                         flushSseBuffer();
                                                     }
                                                     
-                                                    window.sseMergeBuffer.push({ elapsed: elapsed, data: displayData });
+                                                    window.sseMergeBuffer.push({ 
+                                                        elapsed: elapsed, 
+                                                        data: displayData,
+                                                        origData: data.data_str
+                                                    });
                                                     window.sseLastReceiveTime = now;
                                                     
                                                     if (window.sseFlushTimer) {
@@ -1207,33 +1269,68 @@
                                     
                                     window.serialEventSource.onerror = function(error) {
                                         console.error('SSE错误:', error);
-                                        appendReceive('SSE连接错误，尝试重连...');
+                                        window.sseReconnecting = true;
+                                        if (window.serialEventSource) {
+                                            window.serialEventSource.close();
+                                        }
+                                        window.serialEventSource = undefined;
                                         setTimeout(function() {
-                                            if (window.serialEventSource.readyState === EventSource.CLOSED) {
-                                                window.mbQuery(0, 'serial_assistant:start_sse', function(cmsg, resp) {
-                                                    const result = JSON.parse(resp);
-                                                    if (result.status === 'success') {
-                                                        window.serialEventSource = new EventSource(result.url);
-                                                        setupEventSourceHandlers();
-                                                    }
-                                                });
-                                            }
-                                        }, 1000);
+                                            window.sseReconnecting = false;
+                                            tryReconnectSSE();
+                                        }, 1500);
                                     };
+                                    
+                                    function tryReconnectSSE() {
+                                        if (window.sseReconnecting) {
+                                            console.log('已在重连中，跳过');
+                                            return;
+                                        }
+                                        window.sseReconnecting = true;
+                                        console.log('尝试重新连接SSE...');
+                                        window.mbQuery(0, 'serial_assistant:get_sse_url', function(cmsg, resp) {
+                                            try {
+                                                const result = JSON.parse(resp);
+                                                if (result.status === 'success') {
+                                                    console.log('获取到SSE URL，重新连接...');
+                                                    window.serialEventSource = new EventSource(result.url);
+                                                } else {
+                                                    console.log('SSE服务器未运行，启动新服务器...');
+                                                    window.mbQuery(0, 'serial_assistant:start_sse', function(c2, resp2) {
+                                                        const r2 = JSON.parse(resp2);
+                                                        if (r2.status === 'success') {
+                                                            window.serialEventSource = new EventSource(r2.url);
+                                                        } else {
+                                                            console.error('SSE启动失败，无法重连');
+                                                            return;
+                                                        }
+                                                    });
+                                                }
+                                                if (window.serialEventSource) {
+                                                    setupEventSourceHandlers();
+                                                    console.log('SSE重连成功');
+                                                    window.sseReconnecting = false;
+                                                }
+                                            } catch(e) {
+                                                console.error('SSE重连失败:', e);
+                                                window.sseReconnecting = false;
+                                                setTimeout(tryReconnectSSE, 2000);
+                                            }
+                                        });
+                                    }
                                     
                                     refreshBtn.click();
                                 } else {
-                                    appendReceive('SSE启动失败: ' + sseResult.message);
+                                    appendReceive('SSE启动失败: ' + sseResult.message, false);
                                 }
                             } catch(e) {
-                                appendReceive('SSE响应解析失败: ' + e);
+                                appendReceive('SSE响应解析失败: ' + e, false);
                             }
                         });
                     } else {
-                        appendReceive('连接失败: ' + result.message);
+                        appendReceive('连接失败: ' + result.message, false);
                     }
                 } catch (e) {
-                    appendReceive('连接响应解析失败: ' + e);
+                    appendReceive('连接响应解析失败: ' + e, false);
                 }
             });
         });
@@ -1242,6 +1339,14 @@
             if (window.serialPollInterval) {
                 clearInterval(window.serialPollInterval);
                 window.serialPollInterval = undefined;
+            }
+            if (window.ssePingInterval) {
+                clearInterval(window.ssePingInterval);
+                window.ssePingInterval = undefined;
+            }
+            if (window.sseHealthCheck) {
+                clearInterval(window.sseHealthCheck);
+                window.sseHealthCheck = undefined;
             }
             if (window.serialEventSource) {
                 window.serialEventSource.close();
@@ -1258,12 +1363,12 @@
                         const result = JSON.parse(response);
                         if (result.status === 'success') {
                             updateStatus(false, '');
-                            appendReceive('已断开连接');
+                            appendReceive('已断开连接', false);
                         } else {
-                            appendReceive('断开失败: ' + result.message);
+                            appendReceive('断开失败: ' + result.message, false);
                         }
                     } catch (e) {
-                        appendReceive('断开响应解析失败: ' + e);
+                        appendReceive('断开响应解析失败: ' + e, false);
                     }
                 });
             });
@@ -1274,7 +1379,7 @@
             if (!data) return;
             
             if (!isConnected) {
-                appendReceive('未连接串口');
+                appendReceive('未连接串口', false);
                 return;
             }
             
@@ -1284,7 +1389,7 @@
                 cmd = 'send_hex';
                 paramKey = 'hex';
                 if (!/^[0-9A-Fa-f\s]+$/.test(data)) {
-                    appendReceive('HEX 模式只允许输入 0-9, A-F');
+                    appendReceive('HEX 模式只允许输入 0-9, A-F', false);
                     return;
                 }
             } else {
@@ -1302,12 +1407,12 @@
                         const timestamp = getTimestamp();
                         receiveArea.value += '[' + timestamp + '] [发送] ' + data + '\n';
                         receiveArea.scrollTop = receiveArea.scrollHeight;
-                        appendReceive('发送成功 (' + len + ' 字节)');
+                        appendReceive('发送成功 (' + len + ' 字节)', false);
                     } else {
-                        appendReceive('发送失败: ' + result.message);
+                        appendReceive('发送失败: ' + result.message, false);
                     }
                 } catch (e) {
-                    appendReceive('发送响应解析失败: ' + e);
+                    appendReceive('发送响应解析失败: ' + e, false);
                 }
             });
             
@@ -1349,6 +1454,8 @@
         
         document.getElementById('btn-clear-receive').addEventListener('click', function() {
             receiveArea.value = '';
+            recvBytes = 0;
+            recvCount.textContent = '';
         });
         
         document.getElementById('btn-minimize').addEventListener('click', function() {

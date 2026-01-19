@@ -6,6 +6,7 @@ python -m nuitka --standalone --onefile ^
 --windows-console-mode=attach ^
 --windows-icon-from-ico=app_icon.ico ^
 --output-dir="dist" ^
+--output-filename="CelliumSerial.exe" ^
 --company="Cellium" ^
 --product-name="Cellium Serial" ^
 --file-version=1.0.0.0 ^

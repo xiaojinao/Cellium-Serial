@@ -11,6 +11,7 @@ import time
 import serial
 import serial.tools.list_ports
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from socketserver import ThreadingMixIn
 from typing import Dict, Any, Optional, List, Tuple
 from app.core.interface.icell import ICell
 from app.core.di.container import injected, AutoInjectMeta
@@ -55,15 +56,14 @@ class SSEServer:
     def add_client(self, client_handler):
         """添加SSE客户端"""
         with self.lock:
-            self.clients.append(client_handler)
-        logger.info(f"SSE客户端已连接，当前连接数: {len(self.clients)}")
+            if client_handler not in self.clients:
+                self.clients.append(client_handler)
         
     def remove_client(self, client_handler):
         """移除SSE客户端"""
         with self.lock:
             if client_handler in self.clients:
                 self.clients.remove(client_handler)
-        logger.info(f"SSE客户端已断开，当前连接数: {len(self.clients)}")
         
     def broadcast(self, data: dict):
         """广播数据到所有客户端"""
@@ -74,23 +74,26 @@ class SSEServer:
         message_bytes = message.encode('utf-8')
         
         with self.lock:
-            dead_clients = []
-            for client in self.clients:
-                try:
+            current_clients = list(self.clients)
+        
+        for client in current_clients:
+            try:
+                if client and client.wfile:
                     client.wfile.write(message_bytes)
                     client.wfile.flush()
-                except Exception as e:
-                    logger.debug(f"SSE客户端写入失败: {e}")
-                    dead_clients.append(client)
-            
-            for client in dead_clients:
-                self.remove_client(client)
+            except Exception:
+                try:
+                    self.remove_client(client)
+                except Exception:
+                    pass
 
 
-class SSEServerThreaded(HTTPServer):
-    """支持多客户端的SSE HTTP服务器"""
+class SSEServerThreaded(ThreadingMixIn, HTTPServer):
+    """真正的多线程HTTP服务器，支持并行处理多个连接"""
+    daemon_threads = True
+    allow_reuse_address = True
     
-    def __init__(self, host: str, port: int, sse_server: SSEServer):
+    def __init__(self, host: str, port: int, sse_server: 'SSEServer'):
         super().__init__((host, port), SSERequestHandler)
         self.sse_server = sse_server
     
@@ -125,18 +128,29 @@ class SSERequestHandler(BaseHTTPRequestHandler):
         self.send_header('Cache-Control', 'no-cache')
         self.send_header('Connection', 'keep-alive')
         self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Keep-Alive', 'timeout=300')
         self.end_headers()
         
         sse_server = self.server.sse_server
         sse_server.add_client(self)
         
+        heartbeat_interval = 10
+        
         try:
             while sse_server.running:
-                time.sleep(1)
+                try:
+                    self.wfile.write(b': heartbeat\n\n')
+                    self.wfile.flush()
+                except (BrokenPipeError, ConnectionResetError, OSError):
+                    break
+                time.sleep(heartbeat_interval)
         except Exception as e:
-            logger.debug(f"SSE连接异常: {e}")
+            logger.debug(f"SSE连接维护异常: {e}")
         finally:
-            sse_server.remove_client(self)
+            try:
+                sse_server.remove_client(self)
+            except Exception:
+                pass
             
     def _send_error_response(self):
         """发送错误响应"""
@@ -223,6 +237,12 @@ class SerialAssistantCell(ICell, metaclass=AutoInjectMeta):
             
             elif command == "get_sse_url":
                 return self._get_sse_url()
+            
+            elif command == "ping":
+                return self._ping()
+            
+            elif command == "remove_sse_client":
+                return self._remove_sse_client()
 
             return json.dumps({"status": "error", "message": f"Unknown command: {command}"}, ensure_ascii=False)
         except Exception as e:
@@ -364,18 +384,23 @@ class SerialAssistantCell(ICell, metaclass=AutoInjectMeta):
                         self._received_hex.append((timestamp, hex_str))
                     
                     if self._sse_enabled:
-                        get_sse_server().broadcast({
-                            "type": "receive",
-                            "elapsed_ms": elapsed_ms,
-                            "data_str": data_str,
-                            "hex": hex_str
-                        })
+                        try:
+                            sse_server = get_sse_server()
+                            if sse_server:
+                                sse_server.broadcast({
+                                    "type": "receive",
+                                    "elapsed_ms": elapsed_ms,
+                                    "data_str": data_str,
+                                    "hex": hex_str
+                                })
+                        except Exception as sse_error:
+                            logger.debug(f"SSE广播失败（不影响串口读取）: {sse_error}")
                     
                     logger.debug(f"收到数据: {data_str[:100]}")
 
             except Exception as e:
                 logger.error(f"读取串口数据错误: {e}")
-                break
+                time.sleep(0.1)  # 避免紧密循环
     
     def _send_data(self, data: str) -> str:
         """发送字符串数据"""
@@ -516,8 +541,27 @@ class SerialAssistantCell(ICell, metaclass=AutoInjectMeta):
     def _get_sse_url(self) -> str:
         """获取SSE连接URL"""
         server = get_sse_server()
+        if not self._sse_enabled or not server.running:
+            return json.dumps({
+                "status": "error",
+                "message": "SSE服务器未启动"
+            }, ensure_ascii=False)
         return json.dumps({
             "status": "success",
             "url": f"http://{server.host}:{server.port}/serial_stream",
             "enabled": self._sse_enabled
         }, ensure_ascii=False)
+    
+    def _ping(self) -> str:
+        """前端心跳保持连接"""
+        return json.dumps({"status": "success", "message": "pong"}, ensure_ascii=False)
+    
+    def _remove_sse_client(self) -> str:
+        """前端通知移除无效客户端"""
+        try:
+            server = get_sse_server()
+            server.clients.clear()
+            logger.info("已清空SSE客户端列表")
+            return json.dumps({"status": "success", "message": "客户端已移除"}, ensure_ascii=False)
+        except Exception as e:
+            return json.dumps({"status": "error", "message": str(e)}, ensure_ascii=False)
