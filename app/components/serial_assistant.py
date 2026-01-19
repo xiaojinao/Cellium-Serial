@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 class SSEServer:
-    """轻量级SSE服务器，用于实时推送串口数据"""
+    """SSE服务器"""
     
     def __init__(self, host: str = 'localhost', port: int = 8080):
         self.host = host
@@ -89,7 +89,7 @@ class SSEServer:
 
 
 class SSEServerThreaded(ThreadingMixIn, HTTPServer):
-    """真正的多线程HTTP服务器，支持并行处理多个连接"""
+    """多线程HTTP服务器"""
     daemon_threads = True
     allow_reuse_address = True
     
@@ -98,7 +98,6 @@ class SSEServerThreaded(ThreadingMixIn, HTTPServer):
         self.sse_server = sse_server
     
     def serve_forever(self):
-        """优雅启动服务器循环"""
         try:
             super().serve_forever()
         except (OSError, Exception):
@@ -292,7 +291,7 @@ class SerialAssistantCell(ICell, metaclass=AutoInjectMeta):
     def _open_port(self, port: str = '', baudrate: int = 9600, bytesize: int = 8,
                    parity: Optional[str] = None, stopbits: float = 1,
                    rtscts: bool = False, xonxoff: bool = False) -> str:
-        """打开串口（支持完整参数配置）"""
+        """打开串口"""
         if self._serial_port and self._serial_port.is_open:
             self._close_port()
 
