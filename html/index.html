@@ -1135,17 +1135,7 @@
                                             }
                                         }
                                         
-                                        if (combined.includes('\n')) {
-                                            const parts = combined.split('\n');
-                                            for (let i = 0; i < parts.length; i++) {
-                                                const part = parts[i];
-                                                if (part || i < parts.length - 1) {
-                                                    receiveArea.value += '[' + elapsed + 'ms] ' + (part || '\\n') + '\n';
-                                                }
-                                            }
-                                        } else {
-                                            receiveArea.value += '[' + elapsed + 'ms] ' + combined + '\n';
-                                        }
+                                        receiveArea.value += '[' + elapsed + 'ms] ' + combined + '\n';
                                         receiveArea.scrollTop = receiveArea.scrollHeight;
                                         
                                         recvBytes += byteCount;
@@ -1167,7 +1157,7 @@
                                                 const elapsed = data.elapsed_ms;
                                                 const displayData = receiveHexMode ? data.hex : data.data_str;
                                                 
-                                                if (window.sseMergeBuffer.length > 0 && elapsed - window.sseMergeBuffer[window.sseMergeBuffer.length - 1].elapsed > 15) {
+                                                if (window.sseMergeBuffer.length > 0 && elapsed - window.sseMergeBuffer[window.sseMergeBuffer.length - 1].elapsed > 5) {
                                                     flushSseBuffer();
                                                 }
                                                 
@@ -1181,7 +1171,7 @@
                                                 if (window.sseFlushTimer) {
                                                     clearTimeout(window.sseFlushTimer);
                                                 }
-                                                window.sseFlushTimer = setTimeout(flushSseBuffer, 20);
+                                                window.sseFlushTimer = setTimeout(flushSseBuffer, 10);
                                             }
                                         } catch(e) {
                                             console.error('SSE数据解析失败:', e);
@@ -1245,7 +1235,7 @@
                                                     const elapsed = data.elapsed_ms;
                                                     const displayData = receiveHexMode ? data.hex : data.data_str;
                                                     
-                                                    if (window.sseMergeBuffer.length > 0 && elapsed - window.sseMergeBuffer[window.sseMergeBuffer.length - 1].elapsed > 15) {
+                                                    if (window.sseMergeBuffer.length > 0 && elapsed - window.sseMergeBuffer[window.sseMergeBuffer.length - 1].elapsed > 5) {
                                                         flushSseBuffer();
                                                     }
                                                     
@@ -1259,7 +1249,7 @@
                                                     if (window.sseFlushTimer) {
                                                         clearTimeout(window.sseFlushTimer);
                                                     }
-                                                    window.sseFlushTimer = setTimeout(flushSseBuffer, 20);
+                                                    window.sseFlushTimer = setTimeout(flushSseBuffer, 10);
                                                 }
                                             } catch(e) {
                                                 console.error('SSE数据解析失败:', e);
