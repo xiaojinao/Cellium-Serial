@@ -451,6 +451,12 @@ class MainWindow:
             mbInit.argtypes = [ctypes.c_void_p]
             mbInit(None)
             
+            if hasattr(self.lib, 'mbEnableHighDPISupport'):
+                self.lib.mbEnableHighDPISupport()
+                logger.info("高 DPI 支持已启用")
+            else:
+                logger.debug("mbEnableHighDPISupport 函数不可用")
+
             logger.info("引擎已初始化")
             return True
         except Exception as e:
