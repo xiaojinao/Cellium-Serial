@@ -396,10 +396,12 @@ class SerialAssistantCell(ICell, metaclass=AutoInjectMeta):
                             logger.debug(f"SSE广播失败（不影响串口读取）: {sse_error}")
                     
                     logger.debug(f"收到数据: {data_str[:100]}")
+                else:
+                    time.sleep(0.005)  # 没有数据时休眠 5ms，降低 CPU 占用
 
             except Exception as e:
                 logger.error(f"读取串口数据错误: {e}")
-                time.sleep(0.1)  # 避免紧密循环
+                time.sleep(0.1)  # 错误时休眠 100ms
     
     def _send_data(self, data: str) -> str:
         """发送字符串数据"""

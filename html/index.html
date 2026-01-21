@@ -1114,7 +1114,27 @@
                                     window.sseLastReceiveTime = 0;
                                     window.sseFlushTimer = null;
                                     
-                                    function flushSseBuffer() {
+                                    window.ssePendingData = '';
+                                    window.ssePendingByteCount = 0;
+                                    window.sseFrameScheduled = false;
+
+                                    window.sseScheduleFlush = function() {
+                                        if (window.sseFrameScheduled) return;
+                                        window.sseFrameScheduled = true;
+                                        requestAnimationFrame(function() {
+                                            window.sseFrameScheduled = false;
+                                            if (window.ssePendingData) {
+                                                receiveArea.value += window.ssePendingData;
+                                                receiveArea.scrollTop = receiveArea.scrollHeight;
+                                                recvBytes += window.ssePendingByteCount;
+                                                recvCount.textContent = '(' + recvBytes + ' 字节)';
+                                                window.ssePendingData = '';
+                                                window.ssePendingByteCount = 0;
+                                            }
+                                        });
+                                    };
+                                    
+                                    window.sseFlushBuffer = function() {
                                         if (!window.sseMergeBuffer || window.sseMergeBuffer.length === 0) return;
                                         
                                         const lastItem = window.sseMergeBuffer[window.sseMergeBuffer.length - 1];
@@ -1135,15 +1155,14 @@
                                             }
                                         }
                                         
-                                        receiveArea.value += '[' + elapsed + 'ms] ' + combined + '\n';
-                                        receiveArea.scrollTop = receiveArea.scrollHeight;
-                                        
-                                        recvBytes += byteCount;
-                                        recvCount.textContent = '(' + recvBytes + ' 字节)';
+                                        window.ssePendingData += '[' + elapsed + 'ms] ' + combined + '\n';
+                                        window.ssePendingByteCount += byteCount;
                                         
                                         window.sseMergeBuffer = [];
                                         window.sseFlushTimer = null;
-                                    }
+                                        
+                                        window.sseScheduleFlush();
+                                    };
                                     
                                     window.serialEventSource.onopen = function() {
                                     };
@@ -1158,7 +1177,7 @@
                                                 const displayData = receiveHexMode ? data.hex : data.data_str;
                                                 
                                                 if (window.sseMergeBuffer.length > 0 && elapsed - window.sseMergeBuffer[window.sseMergeBuffer.length - 1].elapsed > 5) {
-                                                    flushSseBuffer();
+                                                    window.sseFlushBuffer();
                                                 }
                                                 
                                                 window.sseMergeBuffer.push({ 
@@ -1236,7 +1255,7 @@
                                                     const displayData = receiveHexMode ? data.hex : data.data_str;
                                                     
                                                     if (window.sseMergeBuffer.length > 0 && elapsed - window.sseMergeBuffer[window.sseMergeBuffer.length - 1].elapsed > 5) {
-                                                        flushSseBuffer();
+                                                        window.sseFlushBuffer();
                                                     }
                                                     
                                                     window.sseMergeBuffer.push({ 
