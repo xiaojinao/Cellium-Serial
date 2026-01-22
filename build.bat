@@ -9,8 +9,9 @@ python -m nuitka --standalone --onefile ^
 --output-filename="CelliumSerial.exe" ^
 --company="Cellium" ^
 --product-name="Cellium Serial" ^
---file-version=1.0.0.0 ^
---product-version=1.0.0.0 ^
+--file-version=1.0.1.0 ^
+--product-version=1.0.1.0 ^
+--copyright="Copyright (c) 2026 Cellium Contributors" ^
 --include-package=app ^
 --include-package=app.core ^
 --include-package=app.components ^
