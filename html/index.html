@@ -1190,7 +1190,7 @@
                                                 if (window.sseFlushTimer) {
                                                     clearTimeout(window.sseFlushTimer);
                                                 }
-                                                window.sseFlushTimer = setTimeout(flushSseBuffer, 10);
+                                                window.sseFlushTimer = setTimeout(window.sseFlushBuffer, 10);
                                             }
                                         } catch(e) {
                                             console.error('SSE数据解析失败:', e);
@@ -1268,7 +1268,7 @@
                                                     if (window.sseFlushTimer) {
                                                         clearTimeout(window.sseFlushTimer);
                                                     }
-                                                    window.sseFlushTimer = setTimeout(flushSseBuffer, 10);
+                                                    window.sseFlushTimer = setTimeout(window.sseFlushBuffer, 10);
                                                 }
                                             } catch(e) {
                                                 console.error('SSE数据解析失败:', e);
