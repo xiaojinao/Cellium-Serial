@@ -123,17 +123,7 @@ def get_container() -> DIContainer:
 
 
 def inject(service_type: Type):
-    """依赖注入装饰器
-    
-    使用示例:
-        class Calculator:
-            bus = inject(EventBus)
-            mp_manager = inject(MultiprocessManager)
-            
-            def calculate(self, expr):
-                # 直接使用 self.bus 和 self.mp_manager
-                pass
-    """
+    """依赖注入装饰器"""
     def decorator(prop_func):
         @property
         def wrapper(self):
@@ -166,13 +156,7 @@ class _InjectMarker:
 
 
 def injected(service_type: Type) -> _InjectMarker:
-    """标记属性需要注入
-    
-    使用示例:
-        class Calculator(metaclass=AutoInjectMeta):
-            bus = injected(EventBus)
-            mp_manager = injected(MultiprocessManager)
-    """
+    """标记属性需要注入"""
     return _InjectMarker(service_type)
 
 
